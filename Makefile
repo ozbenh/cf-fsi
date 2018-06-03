@@ -4,7 +4,7 @@ DEBUG ?= 0
 # ARM compiler for userspace test code
 CROSS_COMPILE ?= arm-linux-
 CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -Os
+CFLAGS = -Wall -Os -Werror
 
 # M68K toolchain for CF firmware
 M68KCROSS ?= /opt/cross/binutils-coldfire/bin/m68k-unknown-elf-
