@@ -76,8 +76,6 @@
 	.endm
 
 	/* clock_out_bit reg: Clock out bit 31 of reg */
-	/* XXX TODO: only write to GPIO if value changes */
-	/* XXX TODO: can probably optimize further using shifts & logical ops rather than branches */
 	.macro clock_out_bit reg:req
 	btst.l	#31,\reg
 	beq	98f
@@ -87,6 +85,11 @@
 98:	bclr.l	#DATA_GPIO_BIT,%DDAT
 	trace	#TR_CLKOBIT0
 99:
+	/* If data and clock GPIO share the same register, such as on
+	 * Romulus, the write done by clock_toggle will set the new data
+	 * value along with the low clock edge. Thus we don't need to
+	 * set it here, thus saving a PCLK
+	*/
 #if DATA_GPIO_REG != CLOCK_GPIO_REG
 	move.l	%DDAT,%a4@(0)
 #endif
