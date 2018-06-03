@@ -24,8 +24,8 @@
 	 * A6 : CMD/RESP pointer
 	 * A7 : Stack pointer
 	 * D7 : clock GPIO cache (and data on Romulus)
-	 * D6 : data GPIO cache (when need
-	 * D5 : unused
+	 * D6 : data GPIO cache (when needed)
+	 * D5 : clock bit number
 	 * D4 : data value
 	 * D3 : loop counter
 	 * D2 : command register
@@ -69,9 +69,9 @@
 
 	/* clock_toggle: toggle the clock down and back up */
 	.macro clock_toggle
-	bclr.l	#CLOCK_GPIO_BIT,%DCLK	/* clock low */
+	bclr.l	%d5,%DCLK	/* clock low */
 	move.l	%DCLK,%a5@(0)
-	bset.l	#CLOCK_GPIO_BIT,%DCLK	/* clock high */
+	bset.l	%d5,%DCLK	/* clock high */
 	move.l	%DCLK,%a5@(0)
 	.endm
 
@@ -110,11 +110,11 @@
 	 * note: bit 0 of reg must already be cleared
 	 */
 	.macro clock_in_bit reg:req tmp:req tmp2:req
-	bclr.l	#CLOCK_GPIO_BIT,%DCLK	/* clock low */
+	bclr.l	%d5,%DCLK	/* clock low */
 	move.l	%DCLK,%a5@(0)
 	move.l	%a4@(0),\tmp		/* dummy read */
 	move.l	%a4@(0),\tmp		/* actual read */
-	bset.l	#CLOCK_GPIO_BIT,%DCLK	/* clock high */
+	bset.l	%d5,%DCLK	/* clock high */
 	move.l	%DCLK,%a5@(0)
 	moveq.l	#DATA_GPIO_BIT,\tmp2
 	lsr.l	\tmp2,\tmp
@@ -163,6 +163,9 @@ _start:
 	add.l	#CLOCK_GPIO_REG,%a5
 	add.l	#DATA_GPIO_REG,%a4
 	movea.l	#CVIC_BASE,%a2
+
+	/* Store clock bit number */
+	moveq.l	#CLOCK_GPIO_BIT,%d5
 
 	/* Load GPIO values into caches and Configure clock & data GPIO as output */
 	move.l	%a5@(0),%DCLK
