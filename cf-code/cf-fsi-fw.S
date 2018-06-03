@@ -9,6 +9,10 @@
 	.equ	CVIC_SW_IRQ_CLR,	0x1c
 	.equ	CVIC_SW_IRQ,		0x2
 
+	.equ	FSI_PRE_BREAK_CLOCKS,	50	/* Number clocks to prep for break */
+	.equ	FSI_BREAK_CLOCKS,	256	/* Number of clocks to issue break */
+	.equ	FSI_POST_BREAK_CLOCKS,	16000	/* Number clocks to set up cfam */
+
 	/* Register usage
 	 *
 	 * A0 : sratch/temp
@@ -221,6 +225,10 @@ main_loop:
 	cmpi.b	#CMD_BREAK,%d2
 	beq	start_break
 
+	/* Idle clocks command ? */
+	cmpi.b	#CMD_IDLE_CLOCKS,%d2
+	beq	start_idle_clocks
+
 	/* Error */
 	move.b	#STAT_ERR_INVAL_CMD,%a1@(STAT_REG)
 	bra	main_loop
@@ -371,6 +379,36 @@ send_delay:
 	bra	main_loop
 
 start_break:
+	/* Clock some 1's to pace and flush out whatever's going on */
+	move.l	#FSI_PRE_BREAK_CLOCKS,%d3
+	clock_out_zeros %d3
+
+	/* Clock out the break */
+	moveq.l	#0,%d0
+	clock_out_bit %d0
+	move.l	#(FSI_BREAK_CLOCKS-1),%d3
+0:	clock_toggle
+	subq.l	#1,%d3
+	bne	0b
+
+	/* Clock some more 1's to resync (includes the send delay) */
+	move.l	#FSI_POST_BREAK_CLOCKS,%d3
+	clock_out_zeros %d3
+
+	/* That's it */
+	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
+	bra	main_loop
+
+start_idle_clocks:
+	/* Shift command right to get bit count at bottom */
+	lsr.l	#8,%d2
+
+	/* Clock them out */
+	moveq	#0,%d3
+	move.b	%d2,%d3
+	clock_out_zeros %d3
+
+	/* That's it */
 	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
 	bra	main_loop
 

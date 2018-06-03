@@ -26,6 +26,7 @@
 #define	  CMD_NONE		0x00
 #define	  CMD_COMMAND		0x01
 #define	  CMD_BREAK		0x02
+#define	  CMD_IDLE_CLOCKS	0x03 /* clen = #clocks */
 #define   CMD_INVALID		0xff
 #define  CMD_REG_CLEN_MASK	0x0000ff00
 #define  CMD_REG_CLEN_SHIFT	8
