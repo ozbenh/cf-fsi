@@ -91,13 +91,25 @@
 	 * D0 : scratch/temp
 	 */
 
+	/*
+	 * Define clock/data GPIO cache registers and which
+	 * register to use for trans GPIO in order to deal with
+	 * potential overlaps
+	 */
 #define DCLK d7
 #if CLOCK_GPIO_REG == DATA_GPIO_REG
 #define DDAT d7
 #else
 #define DDAT d6
 #endif
-	/* Useful macros */
+#if TRANS_GPIO_REG == CLOCK_GPIO_REG
+#define DTRA d7
+#elif TRANS_GPIO_REG == DATA_GPIO_REG
+#define DTRA d6
+#else
+#define DTRA d0
+#endif
+
 
 #ifdef ENABLE_TRACE
 	.macro trace op:req
@@ -419,16 +431,16 @@ config_gpio_out:
 	move.l	%d0,%a4@(4)
 
 	/* Set transceivers to output */
-	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%d0
-	bset.l	#TRANS_GPIO_BIT,%d0
-	move.l	%d0,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
+	bset.l	#TRANS_GPIO_BIT,%DTRA
+	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 	rts
 
 config_gpio_in:
 	/* Set transceiver to input */
-	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%d0
-	bclr.l	#TRANS_GPIO_BIT,%d0
-	move.l	%d0,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
+	bclr.l	#TRANS_GPIO_BIT,%DTRA
+	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 
 	/* Configure data GPIO as input */
 	move.l	%a4@(4),%d0
