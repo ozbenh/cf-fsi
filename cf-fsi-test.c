@@ -659,7 +659,9 @@ int main(int argc, char *argv[])
 	dump_stuff();
 	printf("old smode: %08x\n", val);
 
-#define ECHO_SEND_DELAY		2
+	/* 6 seems to be the "sweet spot" for performance */
+#define ECHO_SEND_DELAY		6
+
 	/* Change it to 2,2 */
 	val = FSI_SMODE_WSC | FSI_SMODE_ECRC
 		| fsi_smode_echodly(ECHO_SEND_DELAY - 1)
