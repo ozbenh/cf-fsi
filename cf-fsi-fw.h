@@ -49,6 +49,10 @@
 /* Response CRC */
 #define	STAT_RCRC		0x06
 
+/* Echo and Send delay */
+#define	ECHO_DLY_REG		0x08
+#define	SEND_DLY_REG		0x09
+
 /* Command data area
  *
  * Last byte of message must be left aligned

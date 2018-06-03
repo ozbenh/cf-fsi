@@ -275,7 +275,7 @@ start_command:
 	bne	0b
 
 2:	/* Done sending, ready to receive, first echo delay */
-	moveq	#16,%d3
+	move.b	%a1@(ECHO_DLY_REG),%d3 /* d3 is already 0 */
 	clock_out_zeros %d3
 
 	/* Set GPIO and transceivers to input */
@@ -360,7 +360,8 @@ start_command:
 
 send_delay:
 	/* Send delay after every command */
-	moveq	#16,%d3
+	moveq.l	#0,%d3
+	move.b	%a1@(SEND_DLY_REG),%d3
 	clock_out_zeros %d3
 
 	/* Configure GPIOs to output */

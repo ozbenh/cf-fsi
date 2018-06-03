@@ -612,6 +612,10 @@ int main(int argc, char *argv[])
 	       readb(sysreg + SRAM_BASE + STAT_REG),
 	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
 
+	/* Configure echo & send delay */
+	writeb(16, sysreg + SRAM_BASE + ECHO_DLY_REG);
+	writeb(16, sysreg + SRAM_BASE + SEND_DLY_REG);
+
 	/* Enable interrupt */
 	writel(0x2, sysreg + CVIC_BASE + CVIC_EN_REG);
 
