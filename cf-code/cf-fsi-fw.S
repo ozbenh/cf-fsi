@@ -144,7 +144,10 @@
 	bra	99f
 98:	bclr.l	#DATA_GPIO_BIT,%DDAT
 	trace	#TR_CLKOBIT0
-99:	move.l	%DDAT,%a4@(0)
+99:
+#if DATA_GPIO_REG != CLOCK_GPIO_REG
+	move.l	%DDAT,%a4@(0)
+#endif
 	clock_toggle
 	.endm
 
@@ -153,7 +156,9 @@
 	trace	#TR_CLKZ
 	trace	\reg
 	bset.l	#DATA_GPIO_BIT,%DDAT
+#if DATA_GPIO_REG != CLOCK_GPIO_REG
 	move.l	%DDAT,%a4@(0)
+#endif
 99:	clock_toggle
 	subq.l	#1,\reg
 	bne	99b
