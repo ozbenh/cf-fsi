@@ -1,6 +1,9 @@
 # Main debug switch
 DEBUG ?= 0
 
+# FW version
+FW_VERSION = 1
+
 # ARM compiler for userspace test code
 CROSS_COMPILE ?= arm-linux-
 CC = $(CROSS_COMPILE)gcc
@@ -12,8 +15,10 @@ M68KAS=$(M68KCROSS)as
 M68KLD=$(M68KCROSS)ld
 M68KOC=$(M68KCROSS)objcopy
 
+M68KCPPFLAGS = -DFW_VERSION=$(FW_VERSION)
+
 ifeq ($(DEBUG),1)
-M68KCPPFLAGS = -DENABLE_TRACE
+M68KCPPFLAGS += -DENABLE_TRACE
 endif
 M68KAFLAGS = -march=isac
 M68KLDFLAGS = -Ttext 0

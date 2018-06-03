@@ -195,6 +195,11 @@ _start:
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
 
+	/* Populate version & signature */
+	move.w	#SYS_SIG,%a1@(SYS_SIG_REG)
+	move.b	#FW_VERSION,%a1@(FW_VERS_REG)
+	move.b	#API_VERSION,%a1@(API_VERS_REG)
+
 	/*
 	 * Main command loop
 	 */

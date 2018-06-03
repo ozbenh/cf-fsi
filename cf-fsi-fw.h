@@ -54,6 +54,14 @@
 #define	ECHO_DLY_REG		0x08
 #define	SEND_DLY_REG		0x09
 
+/* Signature & version */
+#define SYS_SIG_REG		0x0c /* 2 bytes system signature */
+#define FW_VERS_REG		0x0e
+#define API_VERS_REG		0x0f
+
+/* Current API version */
+#define API_VERSION		1
+
 /* Command data area
  *
  * Last byte of message must be left aligned
