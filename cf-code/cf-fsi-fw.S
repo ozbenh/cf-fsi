@@ -1,6 +1,5 @@
 	.text
 
-	.equ	TRACE,	0
 _vecs:
 	/* Vectors */
 	.org	0
@@ -29,14 +28,6 @@ _start:
 	.equ	CVIC_STATUS,		0x00
 	.equ	CVIC_SW_IRQ_CLR,	0x1c
 	.equ	CVIC_SW_IRQ,		0x2
-
-	/* XXX Romulus specific definitions */
-	.equ	GPIO_YZAAAB_DATA,	0x1e0
-	.equ	GPIO_YZAAAB_DIR,	0x1e4
-	.equ	GPIO_CLOCK_BIT,		16
-	.equ	GPIO_DATA_BIT,		18
-	.equ	GPIO_QRST_DATA,		0x80
-	.equ	GPIO_QRST_TRANS_BIT,	10
 
 	/****  SRAM layout ****/
 
@@ -102,23 +93,46 @@ _start:
 	.equ	  TR_CLKIBIT0,		0x80
 	.equ	  TR_CLKIBIT1,		0x81
 
+	/* Register usage
+	 *
+	 * A0 : SRAM base (BE)
+	 * A2:  CVIC address.
+	 * A3:  TRACEBUF
+	 * A4 : Data GPIO address
+	 * A5 : Clock GPIO address
+	 * A6 : CMD/RESP pointer
+	 * D7 : clock GPIO cache (and data on Romulus)
+	 * D6 : data GPIO cache (when need
+	 * D4 : data value
+	 * D3 : loop counter
+	 * D2 : command register
+	 * D1 : scratch/temp
+	 * D0 : scratch/temp
+	 */
+
+#define DCLK d7
+#if CLOCK_GPIO_REG == DATA_GPIO_REG
+#define DDAT d7
+#else
+#define DDAT d6
+#endif
 	/* Useful macros */
 
-	.if	TRACE == 1
+#ifdef ENABLE_TRACE
 	.macro trace op:req
 	move.b	\op,%a3@+
 	.endm
-	.else
+#else
 	.macro trace op:req
 	.endm
-	.endif
+#endif
 
 	/* clock_toggle: toggle the clock down and back up */
 	.macro clock_toggle
-	bclr.l	#GPIO_CLOCK_BIT,%d7	/* clock low */
-	move.l	%d7,%a1@(0)
-	bset.l	#GPIO_CLOCK_BIT,%d7	/* clock high */
-	move.l	%d7,%a1@(0)
+	bclr.l	#CLOCK_GPIO_BIT,%DCLK	/* clock low */
+	move.l	%DCLK,%a5@(0)
+	bset.l	#CLOCK_GPIO_BIT,%DCLK	/* clock high */
+	move.l	%DCLK,%a5@(0)
 	.endm
 
 	/* clock_out_bit reg: Clock out bit 31 of reg */
@@ -127,12 +141,12 @@ _start:
 	.macro clock_out_bit reg:req
 	btst.l	#31,\reg
 	beq	98f
-	bset.l	#GPIO_DATA_BIT,%d7
+	bset.l	#DATA_GPIO_BIT,%DDAT
 	trace	#TR_CLKOBIT1
 	bra	99f
-98:	bclr.l	#GPIO_DATA_BIT,%d7
+98:	bclr.l	#DATA_GPIO_BIT,%DDAT
 	trace	#TR_CLKOBIT0
-99:	move.l	%d7,%a1@(0)
+99:	move.l	%DDAT,%a4@(0)
 	clock_toggle
 	.endm
 
@@ -140,8 +154,8 @@ _start:
 	.macro clock_out_zeros reg:req
 	trace	#TR_CLKZ
 	trace	\reg
-	bset.l	#GPIO_DATA_BIT,%d7
-	move.l	%d7,%a1@(0)
+	bset.l	#DATA_GPIO_BIT,%DDAT
+	move.l	%DDAT,%a4@(0)
 99:	clock_toggle
 	subq.l	#1,\reg
 	bne	99b
@@ -151,13 +165,13 @@ _start:
 	 * note: bit 0 of reg must already be cleared
 	 */
 	.macro clock_in_bit reg:req tmp:req tmp2:req
-	bclr.l	#GPIO_CLOCK_BIT,%d7	/* clock low */
-	move.l	%d7,%a1@(0)
-	move.l	%a1@(0),\tmp		/* dummy read */
-	move.l	%a1@(0),\tmp		/* actual read */
-	bset.l	#GPIO_CLOCK_BIT,%d7	/* clock high */
-	move.l	%d7,%a1@(0)
-	moveq.l	#GPIO_DATA_BIT,\tmp2
+	bclr.l	#CLOCK_GPIO_BIT,%DCLK	/* clock low */
+	move.l	%DCLK,%a5@(0)
+	move.l	%a4@(0),\tmp		/* dummy read */
+	move.l	%a4@(0),\tmp		/* actual read */
+	bset.l	#CLOCK_GPIO_BIT,%DCLK	/* clock high */
+	move.l	%DCLK,%a5@(0)
+	moveq.l	#DATA_GPIO_BIT,\tmp2
 	lsr.l	\tmp2,\tmp
 	moveq.l	#1,\tmp2
 	and.l	\tmp2,\tmp
@@ -169,38 +183,27 @@ _start:
 	.endif
 	.endm
 
-	/* Register usage
-	 *
-	 * A0 : SRAM base (BE)
-	 * A1 : GPIO address. This is he data register, we assume the direction
-	 *      register is at this +4
-	 * A2:  CVIC address.
-	 * A3:  TRACEBUF
-	 * A6:  CMD/RESP pointer
-	 * D7 : clock GPIO value (and data on Romulus)
-	 * D6 : loop counter
-	 * D5 : command register
-	 * D4 : data value
-	 */
-
 	/* Get base addresses */
 	movea.l	#SRAM_BASE_BE,%a0
-	movea.l	#GPIO_BASE,%a1
-	add.l	#GPIO_YZAAAB_DATA,%a1
+	movea.l	#GPIO_BASE,%a4
+	movea.l	%a4,%a5
+	add.l	#CLOCK_GPIO_REG,%a5
+	add.l	#DATA_GPIO_REG,%a4
 	movea.l	#CVIC_BASE,%a2
 
 	/* Load GPIO value and Configure clock & data GPIO as output */
-	move.l	%a1@(0),%d7
-	bset.l	#GPIO_CLOCK_BIT,%d7
-	bset.l	#GPIO_DATA_BIT,%d7
-	move.l	%d7, %a1@(0)
-	move.l	%a1@(4),%d0
-	bset.l	#GPIO_CLOCK_BIT,%d0
-	bset.l	#GPIO_DATA_BIT,%d0
-	move.l	%d0,%a1@(4)
-
-	/* Cache GPIO value */
-	move.l	%a1@(0),%d7
+	move.l	%a5@(0),%DCLK
+	move.l	%a4@(0),%DDAT
+	bset.l	#CLOCK_GPIO_BIT,%DCLK
+	bset.l	#DATA_GPIO_BIT,%DDAT
+	move.l	%DCLK, %a5@(0)
+	move.l	%DDAT, %a4@(0)
+	move.l	%a5@(4),%d0
+	bset.l	#CLOCK_GPIO_BIT,%d0
+	move.l	%d0,%a5@(4)
+	move.l	%a4@(4),%d0
+	bset.l	#DATA_GPIO_BIT,%d0
+	move.l	%d0,%a4@(4)
 
 	/* Clear interrupt count */
 	moveq.l	#0,%d0
@@ -224,8 +227,8 @@ main_loop:
 	lea	%a0@(TRACEBUF),%a3
 
 	/* Wait for command */
-1:	move.l	%a0@(CMD_REG),%d5
-	tst.b	%d5
+1:	move.l	%a0@(CMD_REG),%d2
+	tst.b	%d2
 	bne	1f
 	stop	#0x2000
 	bra	1b
@@ -240,11 +243,11 @@ main_loop:
 	move.b	#CMD_NONE,%a0@(CMD_REG + 3)
 
 	/* Start command ? */
-	cmpi.b	#CMD_COMMAND,%d5
+	cmpi.b	#CMD_COMMAND,%d2
 	beq	start_command
 
 	/* Break command ? */
-	cmpi.b	#CMD_BREAK,%d5
+	cmpi.b	#CMD_BREAK,%d2
 	beq	start_break
 
 	/* Error */
@@ -262,24 +265,24 @@ start_command:
 	not.l	%d4
 
 	/* Shift command right to get bit count at bottom */
-	lsr.l	#8,%d5
+	lsr.l	#8,%d2
 
 	trace	#TR_OLEN
-	trace	%d5
+	trace	%d2
 
 	/* More than 32 ? If not go to tail
 	 *
 	 * Note: This assumes we have at least 1 bit to clock
 	 */
-	btst.b	#5,%d5
+	btst.b	#5,%d2
 	beq	1f
 
 	/* Clock out 32 bits */
-	moveq	#32,%d6
-	sub.l	%d6,%d5
+	moveq	#32,%d3
+	sub.l	%d3,%d2
 0:	clock_out_bit %d4
 	lsl.l	#1,%d4
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 
 	/* Get remaining bits */
@@ -287,43 +290,43 @@ start_command:
 	not.l	%d4
 
 	/* Clock out what's left */
-1:	moveq.l	#0,%d6
-	move.b	%d5,%d6
+1:	moveq.l	#0,%d3
+	move.b	%d2,%d3
 	beq	2f
 	trace	#TR_OLEN
-	trace	%d6
+	trace	%d3
 0:	clock_out_bit %d4
 	lsl.l	#1,%d4
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 
 2:	/* Done sending, ready to receive, first echo delay */
-	moveq	#16,%d6
-	clock_out_zeros %d6
+	moveq	#16,%d3
+	clock_out_zeros %d3
 
 	/* Set GPIO and transceivers to input */
 	bsr	config_gpio_in
 
 	/* Wait for start bit */
-	move.l	#1000,%d6
+	move.l	#1000,%d3
 	trace	#TR_CLKWSTART
 0:	moveq	#0,%d4
 	clock_in_bit %d4,%d0,%d1
 	/* We read inverted value, so wait for a "0" */
 	btst	#0,%d4
 	beq	1f
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 	move.b	#STAT_ERR_MTOE,%a0@(STAT_REG)
 	bra	send_delay
 
 1:	/* Got start bit, clock in slave ID and response tag */
 	trace	#TR_CLKTAG
-	moveq	#4,%d6
+	moveq	#4,%d3
 	moveq	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 
 	/* Invert data */
@@ -344,17 +347,17 @@ start_command:
 	bne	1f
 
 	/* Do we expect data ? */
-	lsr.l	#8,%d5
+	lsr.l	#8,%d2
 	beq	1f
 
 	/* Let's get data. Assume no more than 32-bits */
 	trace	#TR_CLKDATA
-	trace	%d5
-	move.l	%d5,%d6
+	trace	%d2
+	move.l	%d2,%d3
 	moveq.l	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 
 	/* Invert data and store it */
@@ -363,11 +366,11 @@ start_command:
 
 1:	/* Grab CRC */
 	trace	#TR_CLKCRC
-	moveq.l	#4,%d6
+	moveq.l	#4,%d3
 	moveq.l	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1
-	subq.l	#1,%d6
+	subq.l	#1,%d3
 	bne	0b
 	trace	%d4
 
@@ -385,8 +388,8 @@ send_delay:
 	bsr	config_gpio_out
 
 	/* Send delay after every command */
-	moveq	#16,%d6
-	clock_out_zeros %d6
+	moveq	#16,%d3
+	clock_out_zeros %d3
 	bra	main_loop
 
 start_break:
@@ -395,28 +398,28 @@ start_break:
 
 config_gpio_out:
 	/* Configure data GPIO as output, value 1 (idle) */
-	bset.l	#GPIO_DATA_BIT,%d7
-	move.l	%d7,%a1@(0)
-	move.l	%a1@(4),%d0
-	bset.l	#GPIO_DATA_BIT,%d0
-	move.l	%d0,%a1@(4)
+	bset.l	#DATA_GPIO_BIT,%DDAT
+	move.l	%DDAT,%a4@(0)
+	move.l	%a4@(4),%d0
+	bset.l	#DATA_GPIO_BIT,%d0
+	move.l	%d0,%a4@(4)
 
 	/* Set transceivers to output */
-	move.l	%a1@(GPIO_QRST_DATA-GPIO_YZAAAB_DATA),%d0
-	bset.l	#GPIO_QRST_TRANS_BIT,%d0
-	move.l	%d0,%a1@(GPIO_QRST_DATA-GPIO_YZAAAB_DATA)
+	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%d0
+	bset.l	#TRANS_GPIO_BIT,%d0
+	move.l	%d0,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 	rts
 
 config_gpio_in:
 	/* Set transceiver to input */
-	move.l	%a1@(GPIO_QRST_DATA-GPIO_YZAAAB_DATA),%d0
-	bclr.l	#GPIO_QRST_TRANS_BIT,%d0
-	move.l	%d0,%a1@(GPIO_QRST_DATA-GPIO_YZAAAB_DATA)
+	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%d0
+	bclr.l	#TRANS_GPIO_BIT,%d0
+	move.l	%d0,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 
 	/* Configure data GPIO as input */
-	move.l	%a1@(4),%d0
-	bclr.l	#GPIO_DATA_BIT,%d0
-	move.l	%d0,%a1@(4)
+	move.l	%a4@(4),%d0
+	bclr.l	#DATA_GPIO_BIT,%d0
+	move.l	%d0,%a4@(4)
 	rts
 
 	/* Interrupt handler */
