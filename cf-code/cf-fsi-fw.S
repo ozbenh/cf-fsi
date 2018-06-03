@@ -416,12 +416,14 @@ start_command:
 	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
 
 send_delay:
-	/* Configure GPIOs to output */
-	bsr	config_gpio_out
-
 	/* Send delay after every command */
 	moveq	#16,%d3
 	clock_out_zeros %d3
+
+	/* Configure GPIOs to output */
+	bsr	config_gpio_out
+
+	/* Next command */
 	bra	main_loop
 
 start_break:
