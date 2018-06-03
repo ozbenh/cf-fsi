@@ -22,8 +22,8 @@ M68KLDFLAGS = -Ttext 0
 TARGET_DEFS = $(wildcard cf-code/*.h)
 TARGETS_s = $(patsubst %.h,%.s,$(TARGET_DEFS))
 TARGETS_o = $(patsubst %.h,%.o,$(TARGET_DEFS))
-TARGETS_elf = $(patsubst %.elf,%.o,$(TARGET_DEFS))
-TARGETS_bin = $(patsubst %.bin,%.o,$(TARGET_DEFS))
+TARGETS_elf = $(patsubst %.h,%.elf,$(TARGET_DEFS))
+TARGETS_bin = $(patsubst %.h,%.bin,$(TARGET_DEFS))
 
 all: $(TARGETS_bin) cf-fsi-test
 
