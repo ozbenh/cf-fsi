@@ -60,7 +60,9 @@
 #define API_VERS_REG		0x0f
 
 /* Current API version */
+#define API_VERSION_MASK	0x7f
 #define API_VERSION		1
+#define API_VERSION_TRACE_EN	0x80
 
 /* Command data area
  *
@@ -74,18 +76,6 @@
 /* Misc */
 #define	INT_CNT			0x30 /* 32-bit interrupt count */
 #define	BAD_INT_VEC		0x34
-#define	TRACEBUF		0x100
-#define	  TR_CLKOSTART		0x00
-#define	  TR_OLEN		0x01/* + len */
-#define	  TR_CLKOBIT0		0x02
-#define	  TR_CLKOBIT1		0x03
-#define	  TR_CLKZ		0x04 /* + count */
-#define	  TR_CLKWSTART		0x05
-#define	  TR_CLKTAG		0x06 /* + tag */
-#define	  TR_CLKDATA		0x07 /* + len */
-#define	  TR_CLKCRC		0x08 /* + raw crc */
-#define	  TR_CLKIBIT0		0x80
-#define	  TR_CLKIBIT1		0x81
 
 /*
  *  SRAM layout: GPIO arbitration part
@@ -93,6 +83,22 @@
 #define ARB_REG			0x40
 #define  ARB_ARM_REQ		0x01
 #define  ARB_ARM_ACK		0x02
+
+/*
+ * SRAM layout: Trace buffer (debug builds only)
+ */
+#define	TRACEBUF		0x100
+#define	  TR_CLKOBIT0		0x80
+#define	  TR_CLKOBIT1		0x81
+#define	  TR_CLKOSTART		0x82
+#define	  TR_OLEN		0x83/* + len */
+#define	  TR_CLKZ		0x84 /* + count */
+#define	  TR_CLKWSTART		0x85
+#define	  TR_CLKTAG		0x86 /* + tag */
+#define	  TR_CLKDATA		0x87 /* + len */
+#define	  TR_CLKCRC		0x88 /* + raw crc */
+#define	  TR_CLKIBIT0		0x90
+#define	  TR_CLKIBIT1		0x91
 
 #endif /* __CF_FSI_FW_H */
 

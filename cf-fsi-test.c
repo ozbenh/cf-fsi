@@ -139,6 +139,7 @@ static void *cfmem;
 #define LAST_ADDR_INVALID		0x1
 
 uint32_t g_last_addr;
+bool trace_enabled;
 
 static void open_mem(void)
 {
@@ -438,7 +439,7 @@ static void dump_stuff(void)
 	       ntohl(readl(sysreg + SRAM_BASE + RSP_DATA)),
 	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
 
-	for (i = 0; i < 128; i++) {
+	for (i = 0; trace_enabled && i < 128; i++) {
 		printf("%02x ", readb(sysreg + SRAM_BASE + TRACEBUF + i));
 		if ((i % 16) == 15)
 			printf("\n");
@@ -620,23 +621,25 @@ int main(int argc, char *argv[])
 
 	gpio_source_cf();
 
-	/* Mark command invalid and clear sram */
-	//	writel(0xffffffff, sysreg + SRAM_BASE + CMD_REG);
-	memset(sysreg + SRAM_BASE, 0xff, 0x1000);
+	/* Clear SRAM */
+	memset(sysreg + SRAM_BASE, 0x00, 0x1000);
+	dsb();
 
 	/* Start ColdFire */
 	start_cf();
 
-	/* Wait for ack */
+	/* Wait for ack API version register*/
 	do {
-		val = readb(sysreg + SRAM_BASE + STAT_REG);
-	} while (val != 0x80);
-	writeb(0, sysreg + SRAM_BASE + STAT_REG);
+		val = readb(sysreg + SRAM_BASE + API_VERS_REG);
+	} while (val == 0x00);
 
-	printf("CMD:%08x STAT:%02x INT: %08x\n",
-	       ntohl(readl(sysreg + SRAM_BASE + CMD_REG)),
-	       readb(sysreg + SRAM_BASE + STAT_REG),
-	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
+	trace_enabled = !!(val & API_VERSION_TRACE_EN);
+
+	printf("SYS_SIG=%.4x FW_VERSION=%d API_VERSION=%d (trace %s)\n",
+	       ntohs(readw(sysreg + SRAM_BASE + SYS_SIG_REG)),
+	       readb(sysreg + SRAM_BASE + FW_VERS_REG),
+	       val & API_VERSION_MASK,
+	       trace_enabled ? "enabled" : "disabled");
 
 	/* Configure echo & send delay */
 	writeb(16, sysreg + SRAM_BASE + ECHO_DLY_REG);

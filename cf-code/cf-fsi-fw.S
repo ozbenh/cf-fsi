@@ -195,13 +195,21 @@ _start:
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
 
+	/* Clear arbitration register */
+	move.b	#0,%a1@(ARB_REG)
+
 	/* Populate version & signature */
 	move.w	#SYS_SIG,%a1@(SYS_SIG_REG)
 	move.b	#FW_VERSION,%a1@(FW_VERS_REG)
-	move.b	#API_VERSION,%a1@(API_VERS_REG)
 
-	/* Clear arbitration register */
-	move.b	#0,%a1@(ARB_REG)
+	/* This must happen last as it's the signal to the host
+	 * that we are ready
+	 */
+#ifdef ENABLE_TRACE
+	move.b	#(API_VERSION + API_VERSION_TRACE_EN),%a1@(API_VERS_REG)
+#else
+	move.b	#API_VERSION,%a1@(API_VERS_REG)
+#endif
 
 	/*
 	 * Main command loop
