@@ -425,7 +425,7 @@ static void dump_stuff(void)
 	       ntohl(readl(sysreg + SRAM_BASE + RSP_DATA)),
 	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 128; i++) {
 		printf("%02x ", readb(sysreg + SRAM_BASE + TRACEBUF + i));
 		if ((i % 16) == 15)
 			printf("\n");
