@@ -28,7 +28,7 @@ TARGETS_bin = $(patsubst %.h,%.bin,$(TARGET_DEFS))
 all: $(TARGETS_bin) cf-fsi-test
 
 cf-code/%.s : cf-code/%.h cf-code/cf-fsi-fw.S
-	$(CC) -E $(M68KCPPFLAGS) -include $^ -o $@
+	$(CC) -E $(M68KCPPFLAGS) -I. -include $^ -o $@
 
 cf-code/%.o : cf-code/%.s
 	$(M68KAS) $(M68KAFLAGS) -march=isac $^ -o $@

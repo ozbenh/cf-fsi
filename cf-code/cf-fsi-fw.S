@@ -1,3 +1,5 @@
+#include "cf-fsi-fw.h"
+
 	.equ	SRAM_BASE_BE,	0x320000
 	.equ	SRAM_BASE_LE,	0x720000
 	.equ	GPIO_BASE,	0x780000
@@ -6,70 +8,6 @@
 	.equ	CVIC_STATUS,		0x00
 	.equ	CVIC_SW_IRQ_CLR,	0x1c
 	.equ	CVIC_SW_IRQ,		0x2
-
-	/****  SRAM layout ****/
-
-	/* Command register:
-	 *
-	 * +---------------------------+
-	 * | rsvd | RLEN | CLEN | CMD  |
-	 * |   8  |   8  |   8  |   8  |
-	 * +---------------------------+
-	 *            |      |      |
-	 * Response len      |      |
-	 * (in bits)         |      |
-	 *                   |      |
-	 *         Command len      |
-	 *         (in bits)        |
-	 *                          |
-	 *               Command code
-	 */
-	.equ	CMD_REG,		0x00
-	.equ	 CMD_NONE,		0x00
-	.equ	 CMD_COMMAND,		0x01
-	.equ	 CMD_BREAK,		0x02
-
-	/* Status register
-	 *
-	 */
-	.equ	STAT_REG,		0x04 /* Status */
-	.equ	 STAT_STOPPED,		0x00
-	.equ	 STAT_SENDING,		0x01
-	.equ	 STAT_COMPLETE,		0x02
-	.equ	 STAT_ERR_INVAL_CMD,	0x80
-	.equ	 STAT_ERR_INVAL_IRQ,	0x81
-	.equ	 STAT_ERR_MTOE,		0x82
-
-	/* Response tag */
-	.equ	STAT_RTAG,		0x05
-
-	/* Response CRC */
-	.equ	STAT_RCRC,		0x06
-
-	/* Command data area
-	 *
-	 * Last byte of message must be left aligned
-	 */
-	.equ	CMD_DATA,		0x10 /* 64 bit of data */
-
-	/* Response data area, right aligned, unused top bits are 1 */
-	.equ	RSP_DATA,		0x20 /* 32 bit of data */
-
-	/* Misc */
-	.equ	INT_CNT,		0x30 /* 32-bit interrupt count */
-	.equ	BAD_INT_VEC,		0x34
-	.equ	TRACEBUF,		0x40
-	.equ	  TR_CLKOSTART,		0x00
-	.equ	  TR_OLEN,		0x01/* + len */
-	.equ	  TR_CLKOBIT0,		0x02
-	.equ	  TR_CLKOBIT1,		0x03
-	.equ	  TR_CLKZ,		0x04 /* + count */
-	.equ	  TR_CLKWSTART,		0x05
-	.equ	  TR_CLKTAG,		0x06 /* + tag */
-	.equ	  TR_CLKDATA,		0x07 /* + len */
-	.equ	  TR_CLKCRC,		0x08 /* + raw crc */
-	.equ	  TR_CLKIBIT0,		0x80
-	.equ	  TR_CLKIBIT1,		0x81
 
 	/* Register usage
 	 *

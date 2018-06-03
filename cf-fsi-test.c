@@ -16,6 +16,8 @@
 #include <errno.h>
 #include <time.h>
 
+#include "cf-fsi-fw.h"
+
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
 				    : : "r" (0) : "memory")
 
@@ -113,41 +115,6 @@ static void *sysreg;
 static void *cfmem;
 #define CFMEM_BASE	0x9ef00000	/* Reserved memory */
 #define CFMEM_SIZE	0x00100000	/* 1M */
-
-#define CMD_REG			0x00
-#define  CMD_REG_CMD_MASK	0x000000ff
-#define  CMD_REG_CMD_SHIFT	0
-#define   CMD_NONE		0x00
-#define   CMD_COMMAND		0x01
-#define   CMD_BREAK		0x02
-#define   CMD_INVALID		0xff
-#define  CMD_REG_CLEN_MASK	0x0000ff00
-#define  CMD_REG_CLEN_SHIFT	8
-#define  CMD_REG_RLEN_MASK	0x00ff0000
-#define  CMD_REG_RLEN_SHIFT	16
-
-#define STAT_REG		0x04
-#define	 STAT_STOPPED		0x00
-#define	 STAT_SENDING		0x01
-#define	 STAT_COMPLETE		0x02
-#define	 STAT_ERR_INVAL_CMD	0x80
-#define	 STAT_ERR_INVAL_IRQ	0x81
-#define	 STAT_ERR_MTOE		0x83
-
-#define STAT_RTAG		0x05
-#define STAT_RCRC		0x06
-
-#define CMD_DATA		0x10 /* 64 bit of data left aligned */
-#define RSP_DATA		0x20 /* 32 bit of data right aligned */
-#define INT_CNT			0x30 /* debug: interrupt count */
-#define BAD_INT_VEC		0x34 /* debug: vector of bad interrupt */
-
-#define TRACEBUF		0x40
-#define   TR_CLK0START		0x01
-#define   TR_CLKOBIT0		0x02
-#define   TR_CLKOBIT1		0x03
-#define   TR_CLKZ		0x04 /* + # */
-#define   TR_CLKWSTART		0x05 /* + bit */
 
 #define	FSI_GPIO_CMD_DPOLL      0x2
 #define	FSI_GPIO_CMD_EPOLL      0x3
