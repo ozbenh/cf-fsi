@@ -65,7 +65,7 @@
 	.equ	  TR_CLKOBIT1,		0x03
 	.equ	  TR_CLKZ,		0x04 /* + count */
 	.equ	  TR_CLKWSTART,		0x05
-	.equ	  TR_CLKTAG,		0x06
+	.equ	  TR_CLKTAG,		0x06 /* + tag */
 	.equ	  TR_CLKDATA,		0x07 /* + len */
 	.equ	  TR_CLKCRC,		0x08 /* + raw crc */
 	.equ	  TR_CLKIBIT0,		0x80
@@ -174,11 +174,11 @@
 	moveq.l	#1,\tmp2
 	and.l	\tmp2,\tmp
 	or.l	\tmp,\reg
-	.if	TRACE == 1
+#ifdef ENABLE_TRACE
 	move.l	#TR_CLKIBIT0,\tmp2
 	or.l	\tmp,\tmp2
 	trace	\tmp2
-	.endif
+#endif
 	.endm
 
 	/*
@@ -360,8 +360,9 @@ start_command:
 	subq.l	#1,%d3
 	bne	0b
 
-	/* Invert data */
+	/* Invert data & trace*/
 	not.l	%d4
+	trace	%d4
 
 	/* (not strictly needed: clean up top bits) */
 	moveq	#0xf,%d0
@@ -403,10 +404,10 @@ start_command:
 	clock_in_bit %d4,%d0,%d1
 	subq.l	#1,%d3
 	bne	0b
-	trace	%d4
 
 	/* Invert it, extract 4 bits, and store it */
 	not.l	%d4
+	trace	%d4
 	moveq.l	#0xf,%d0
 	and.l	%d0,%d4
 	move.b	%d4,%a1@(STAT_RCRC)
