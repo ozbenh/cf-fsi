@@ -123,6 +123,19 @@ static void *cfmem;
 #define FSI_GPIO_CMD_REL_AR	0x5
 #define FSI_GPIO_CMD_SAME_AR	0x3	/* but only a 2-bit opcode... */
 
+#define FSI_SLAVE_BASE			0x800
+#define FSI_SMODE		0x0	/* R/W: Mode register */
+#define FSI_SMODE_WSC		0x80000000	/* Warm start done */
+#define FSI_SMODE_ECRC		0x20000000	/* Hw CRC check */
+#define FSI_SMODE_SID_SHIFT	24		/* ID shift */
+#define FSI_SMODE_SID_MASK	3		/* ID Mask */
+#define FSI_SMODE_ED_SHIFT	20		/* Echo delay shift */
+#define FSI_SMODE_ED_MASK	0xf		/* Echo delay mask */
+#define FSI_SMODE_SD_SHIFT	16		/* Send delay shift */
+#define FSI_SMODE_SD_MASK	0xf		/* Send delay mask */
+#define FSI_SMODE_LBCRR_SHIFT	8		/* Clk ratio shift */
+#define FSI_SMODE_LBCRR_MASK	0xf		/* Clk ratio mask */
+
 #define LAST_ADDR_INVALID		0x1
 
 uint32_t g_last_addr;
@@ -470,6 +483,12 @@ static int do_command(uint32_t op)
 	return -ENXIO;
 }
 
+int test_break(void)
+{
+	printf("Sending break..\n");
+	return do_command(CMD_BREAK);
+}
+
 int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 {
 	struct fsi_gpio_msg cmd;
@@ -533,6 +552,25 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 		dump_stuff();
 	return 0;
 }
+
+/* Encode slave local bus echo delay */
+static inline uint32_t fsi_smode_echodly(int x)
+{
+	return (x & FSI_SMODE_ED_MASK) << FSI_SMODE_ED_SHIFT;
+}
+
+/* Encode slave local bus send delay */
+static inline uint32_t fsi_smode_senddly(int x)
+{
+	return (x & FSI_SMODE_SD_MASK) << FSI_SMODE_SD_SHIFT;
+}
+
+/* Encode slave local bus clock rate ratio */
+static inline uint32_t fsi_smode_lbcrr(int x)
+{
+	return (x & FSI_SMODE_LBCRR_MASK) << FSI_SMODE_LBCRR_SHIFT;
+}
+
 
 void bench(void)
 {
@@ -609,9 +647,32 @@ int main(int argc, char *argv[])
 
 	last_address_update(0, false, 0);
 
+	/* Send break */
+	test_break();
+
 	/* Test read */
 	test_rw(0, false, NULL);
 	test_rw(4, false, NULL);
+
+	/* Read smode */
+	test_rw(FSI_SLAVE_BASE + FSI_SMODE, false, &val);
+	dump_stuff();
+	printf("old smode: %08x\n", val);
+
+#define ECHO_SEND_DELAY		2
+	/* Change it to 2,2 */
+	val = FSI_SMODE_WSC | FSI_SMODE_ECRC
+		| fsi_smode_echodly(ECHO_SEND_DELAY - 1)
+		| fsi_smode_senddly(ECHO_SEND_DELAY - 1)
+		| fsi_smode_lbcrr(0x8);
+	printf("writing smode 0x%08x..\n", val);
+	test_rw(FSI_SLAVE_BASE + FSI_SMODE, true, &val);
+	do_command(CMD_IDLE_CLOCKS | (16 << CMD_REG_CLEN_SHIFT));
+	writeb(ECHO_SEND_DELAY, sysreg + SRAM_BASE + ECHO_DLY_REG);
+	writeb(ECHO_SEND_DELAY, sysreg + SRAM_BASE + SEND_DLY_REG);
+
+	test_rw(FSI_SLAVE_BASE + FSI_SMODE, false, &val);
+	printf("new smode: %08x\n", val);
 
 	bench();
 
