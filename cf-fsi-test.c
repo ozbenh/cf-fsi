@@ -432,14 +432,17 @@ static void dump_stuff(void)
 	}
 }
 
-int test_read(uint32_t addr, uint32_t *data)
+int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 {
 	struct fsi_gpio_msg cmd;
-	uint32_t op, resp, crc;
+	uint32_t op, resp = 0, crc;
 	uint8_t stat, rtag, rcrc, ack;
 	uint32_t timeout = 100000;
 
-	build_ar_command(&cmd, 0, addr, 4, NULL);
+	if (is_write)
+		build_ar_command(&cmd, 0, addr, 4, &data);
+	else
+		build_ar_command(&cmd, 0, addr, 4, NULL);
 
 	/* Left align message */
 	cmd.msg <<= (64 - cmd.bits);
@@ -466,7 +469,8 @@ int test_read(uint32_t addr, uint32_t *data)
 		stat = readb(sysreg + SRAM_BASE + STAT_REG);
 	} while(stat < STAT_COMPLETE || stat == 0xff);
 
-	resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
+	if (!is_write)
+		resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
 	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG);
 	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC);
 	ack = rtag & 3;
@@ -477,7 +481,7 @@ int test_read(uint32_t addr, uint32_t *data)
 	/* we have a whole message now; check CRC */
 	crc = crc4(0, 1, 1);
 	crc = crc4(crc, rtag, 4);
-	if (ack == 0)
+	if (ack == 0 && !is_write)
 		crc = crc4(crc, resp, 32);
 	crc = crc4(crc, rcrc, 4);
 	if (crc) {
@@ -493,7 +497,7 @@ int test_read(uint32_t addr, uint32_t *data)
 		return -EIO;
 	}
 	last_address_update(0, true, addr);
-	if (data)
+	if (data && !is_write)
 		*data = resp;
 	else
 		dump_stuff();
@@ -508,12 +512,12 @@ void bench(void)
 	int i, rc;
 
 	printf("Bench...\n");
-	rc = test_read(0, &orig);
+	rc = test_rw(0, false, &orig);
 	if (rc)
 		return;
 	clock_gettime(CLOCK_MONOTONIC, &t0);
 	for (i = 0; i < (0x100000 / 4); i++) {
-		rc = test_read(0, &val);
+		rc = test_rw(0, false, &val);
 		if (rc) {
 			printf("Failed after %d iterations\n", i);
 			break;
@@ -576,8 +580,8 @@ int main(int argc, char *argv[])
 	last_address_update(0, false, 0);
 
 	/* Test read */
-	test_read(0, NULL);
-	test_read(4, NULL);
+	test_rw(0, false, NULL);
+	test_rw(4, false, NULL);
 
 	bench();
 
