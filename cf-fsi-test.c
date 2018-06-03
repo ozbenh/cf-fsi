@@ -432,12 +432,50 @@ static void dump_stuff(void)
 	}
 }
 
+static int do_command(uint32_t op)
+{
+	uint32_t timeout = 100000;
+	uint8_t stat;
+
+	/* Clear status reg */
+	writeb(0, sysreg + SRAM_BASE + STAT_REG);
+
+	/* Send command */
+	writel(htonl(op), sysreg + SRAM_BASE + CMD_REG);
+
+	/* Ring doorbell */
+	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
+
+	/* Wait for status to indicate completion (or error) */
+	do {
+		if (timeout-- == 0) {
+			printf("Timeout !\n");
+
+			dump_stuff();
+			return -ETIMEDOUT;
+		}
+		stat = readb(sysreg + SRAM_BASE + STAT_REG);
+	} while(stat < STAT_COMPLETE || stat == 0xff);
+
+	if (stat == STAT_COMPLETE)
+		return 0;
+	switch(stat) {
+	case STAT_ERR_INVAL_CMD:
+		return -EINVAL;
+	case STAT_ERR_INVAL_IRQ:
+		return -EIO;
+	case STAT_ERR_MTOE:
+		return -ETIMEDOUT;
+	}
+	return -ENXIO;
+}
+
 int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 {
 	struct fsi_gpio_msg cmd;
 	uint32_t op, resp = 0, crc;
-	uint8_t stat, rtag, rcrc, ack;
-	uint32_t timeout = 100000;
+	uint8_t rtag, rcrc, ack;
+	int rc;
 
 	if (is_write)
 		build_ar_command(&cmd, 0, addr, 4, &data);
@@ -454,29 +492,18 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 	op = CMD_COMMAND;
 	op |= cmd.bits  << CMD_REG_CLEN_SHIFT;
 	op |= 32 << CMD_REG_RLEN_SHIFT;
-	writel(htonl(op), sysreg + SRAM_BASE + CMD_REG);
 
-	/* Ring doorbell */
-	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
-
-	do {
-		if (timeout-- == 0) {
-			printf("Timeout !\n");
-
-			dump_stuff();
-			return -ETIMEDOUT;
-		}
-		stat = readb(sysreg + SRAM_BASE + STAT_REG);
-	} while(stat < STAT_COMPLETE || stat == 0xff);
+	rc = do_command(op);
+	if (rc) {
+		printf("Error %d sending command\n", rc);
+		return rc;
+	}
 
 	if (!is_write)
 		resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
 	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG);
 	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC);
 	ack = rtag & 3;
-
-	/* Clear status reg */
-	writeb(0, sysreg + SRAM_BASE + STAT_REG);
 
 	/* we have a whole message now; check CRC */
 	crc = crc4(0, 1, 1);
