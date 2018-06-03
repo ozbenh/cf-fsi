@@ -475,11 +475,13 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 	struct fsi_gpio_msg cmd;
 	uint32_t op, resp = 0, crc;
 	uint8_t rtag, rcrc, ack;
+	uint32_t be_data;
 	int rc;
 
-	if (is_write)
-		build_ar_command(&cmd, 0, addr, 4, &data);
-	else
+	if (is_write) {
+		be_data = htonl(*data);
+		build_ar_command(&cmd, 0, addr, 4, &be_data);
+	} else
 		build_ar_command(&cmd, 0, addr, 4, NULL);
 
 	/* Left align message */
@@ -491,7 +493,8 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 
 	op = CMD_COMMAND;
 	op |= cmd.bits  << CMD_REG_CLEN_SHIFT;
-	op |= 32 << CMD_REG_RLEN_SHIFT;
+	if (!is_write)
+		op |= 32 << CMD_REG_RLEN_SHIFT;
 
 	rc = do_command(op);
 	if (rc) {
