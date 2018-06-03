@@ -158,7 +158,7 @@ static void *cfmem;
 
 #define LAST_ADDR_INVALID		0x1
 
-uint32_t last_addr;
+uint32_t g_last_addr;
 
 static void open_mem(void)
 {
@@ -346,12 +346,12 @@ static void msg_push_crc(struct fsi_gpio_msg *msg)
 static bool check_same_address(int id, uint32_t addr)
 {
 	/* this will also handle LAST_ADDR_INVALID */
-	return last_addr == (((id & 0x3) << 21) | (addr & ~0x3));
+	return g_last_addr == (((id & 0x3) << 21) | (addr & ~0x3));
 }
 
 static bool check_relative_address(int id, uint32_t addr, uint32_t *rel_addrp)
 {
-	uint32_t last_addr = last_addr;
+	uint32_t last_addr = g_last_addr;
 	int32_t rel_addr;
 
 	if (last_addr == LAST_ADDR_INVALID)
@@ -381,9 +381,9 @@ static bool check_relative_address(int id, uint32_t addr, uint32_t *rel_addrp)
 static void last_address_update(int id, bool valid, uint32_t addr)
 {
 	if (!valid)
-		last_addr = LAST_ADDR_INVALID;
+		g_last_addr = LAST_ADDR_INVALID;
 	else
-		last_addr = ((id & 0x3) << 21) | (addr & ~0x3);
+		g_last_addr = ((id & 0x3) << 21) | (addr & ~0x3);
 }
 
 static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
