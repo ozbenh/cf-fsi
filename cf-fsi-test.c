@@ -413,71 +413,16 @@ static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
 	msg_push_crc(cmd);
 }
 
-void test_read(uint32_t addr)
-{
-	struct fsi_gpio_msg cmd;
-	uint32_t op, resp, crc;
-	uint8_t stat, rtag, rcrc;
-	int i;
-
-	build_ar_command(&cmd, 0, addr, 4, NULL);
-
-	/* Left align message */
-	cmd.msg <<= (64 - cmd.bits);
-
-	printf("msg: %d bits 0x%016llx\n", cmd.bits, cmd.msg);
-
-	/* Store message into SRAM */
-	// byteswap ? */
-	writel(htonl(cmd.msg >> 32), sysreg + SRAM_BASE + CMD_DATA);
-	writel(htonl(cmd.msg & 0xffffffff), sysreg + SRAM_BASE + CMD_DATA + 4);
-
-	op = CMD_COMMAND;
-	op |= cmd.bits  << CMD_REG_CLEN_SHIFT;
-	op |= 32 << CMD_REG_RLEN_SHIFT;
-	writel(htonl(op), sysreg + SRAM_BASE + CMD_REG);
-
-	/* Ring doorbell */
-	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
-
-	do {
-		stat = readb(sysreg + SRAM_BASE + STAT_REG);
-		printf(" stat=%02x\n", stat);
-	} while(stat < STAT_COMPLETE || stat == 0xff);
-
-	resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
-	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG);
-	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC);
-	writeb(0, sysreg + SRAM_BASE + STAT_REG);
-
-	printf("CMD=%08x STAT=%02x RTAG=%02x, RCRC=%02x, RDATA=%08x\n",
-	       ntohl(readl(sysreg + SRAM_BASE + CMD_REG)),
-	       stat, rtag, rcrc, resp);
-
-	/* we have a whole message now; check CRC */
-	crc = crc4(0, 1, 1);
-	crc = crc4(crc, resp, 32);
-	crc = crc4(crc, rcrc, 4);
-	if (crc)
-		printf("CRC ok !\n");
-	else
-		printf("BAD CRC !!!\n");
-
-	for (i = 0; i < 256; i++) {
-		printf("%02x ", readb(sysreg + SRAM_BASE + TRACEBUF + i));
-		if ((i % 16) == 15)
-			printf("\n");
-	}
-	printf("\n");
-}
-
 static void dump_stuff(void)
 {
 	int i;
 
-	printf("CMD:%08x STAT:%02x INT: %08x\n",
+	printf("CMD:%08x STAT:%02x RTAG=%02x RCRC=%02x RDATA=%02x #INT=%08x\n",
 	       ntohl(readl(sysreg + SRAM_BASE + CMD_REG)),
 	       readb(sysreg + SRAM_BASE + STAT_REG),
+	       readb(sysreg + SRAM_BASE + STAT_RTAG),
+	       readb(sysreg + SRAM_BASE + STAT_RCRC),
+	       ntohl(readl(sysreg + SRAM_BASE + RSP_DATA)),
 	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
 
 	for (i = 0; i < 256; i++) {
@@ -487,11 +432,11 @@ static void dump_stuff(void)
 	}
 }
 
-int test_read_fast(uint32_t addr, uint32_t *data)
+int test_read(uint32_t addr, uint32_t *data)
 {
 	struct fsi_gpio_msg cmd;
 	uint32_t op, resp, crc;
-	uint8_t stat, rtag, rcrc;
+	uint8_t stat, rtag, rcrc, ack;
 	uint32_t timeout = 100000;
 
 	build_ar_command(&cmd, 0, addr, 4, NULL);
@@ -524,26 +469,34 @@ int test_read_fast(uint32_t addr, uint32_t *data)
 	resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
 	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG);
 	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC);
+	ack = rtag & 3;
 
 	/* Clear status reg */
 	writeb(0, sysreg + SRAM_BASE + STAT_REG);
 
 	/* we have a whole message now; check CRC */
 	crc = crc4(0, 1, 1);
-	crc = crc4(crc, resp, 32);
+	crc = crc4(crc, rtag, 4);
+	if (ack == 0)
+		crc = crc4(crc, resp, 32);
 	crc = crc4(crc, rcrc, 4);
-	if (!crc) {
+	if (crc) {
 		last_address_update(0, false, 0);
 		printf("BAD CRC !!!\n");
+		dump_stuff();
 		return -ETIMEDOUT;
 	}
-	if (rtag & 3) {
+	if (ack) {
 		printf("FSI error 0x%x\n", rtag & 3);
 		last_address_update(0, false, 0);
+		dump_stuff();
 		return -EIO;
 	}
 	last_address_update(0, true, addr);
-	*data = resp;
+	if (data)
+		*data = resp;
+	else
+		dump_stuff();
 	return 0;
 }
 
@@ -555,12 +508,12 @@ void bench(void)
 	int i, rc;
 
 	printf("Bench...\n");
-	rc = test_read_fast(0, &orig);
+	rc = test_read(0, &orig);
 	if (rc)
 		return;
 	clock_gettime(CLOCK_MONOTONIC, &t0);
 	for (i = 0; i < (0x100000 / 4); i++) {
-		rc = test_read_fast(0, &val);
+		rc = test_read(0, &val);
 		if (rc) {
 			printf("Failed after %d iterations\n", i);
 			break;
@@ -604,8 +557,9 @@ int main(int argc, char *argv[])
 
 	/* Wait for ack */
 	do {
-		val = readl(sysreg + SRAM_BASE + CMD_REG);
-	} while (val == 0xffffffff);
+		val = readb(sysreg + SRAM_BASE + STAT_REG);
+	} while (val != 0x80);
+	writeb(0, sysreg + SRAM_BASE + STAT_REG);
 
 	printf("CMD:%08x STAT:%02x INT: %08x\n",
 	       ntohl(readl(sysreg + SRAM_BASE + CMD_REG)),
@@ -622,8 +576,8 @@ int main(int argc, char *argv[])
 	last_address_update(0, false, 0);
 
 	/* Test read */
-	test_read(0);
-	test_read(4);
+	test_read(0, NULL);
+	test_read(4, NULL);
 
 	bench();
 
