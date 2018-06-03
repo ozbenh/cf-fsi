@@ -110,6 +110,7 @@
 #define DTRA d0
 #endif
 
+	/* Tracing macro */
 
 #ifdef ENABLE_TRACE
 	.macro trace op:req
@@ -119,6 +120,10 @@
 	.macro trace op:req
 	.endm
 #endif
+
+	/*
+	 * Macros for clocking, sending and receiving
+	 */
 
 	/* clock_toggle: toggle the clock down and back up */
 	.macro clock_toggle
@@ -212,7 +217,7 @@ _start:
 	add.l	#DATA_GPIO_REG,%a4
 	movea.l	#CVIC_BASE,%a2
 
-	/* Load GPIO value and Configure clock & data GPIO as output */
+	/* Load GPIO values into caches and Configure clock & data GPIO as output */
 	move.l	%a5@(0),%DCLK
 	move.l	%a4@(0),%DDAT
 	bset.l	#CLOCK_GPIO_BIT,%DCLK
