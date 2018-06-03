@@ -73,14 +73,17 @@
 
 	/* Register usage
 	 *
-	 * A0 : SRAM base (BE)
+	 * A0 : sratch/temp
+	 * A1 : SRAM base (BE)
 	 * A2:  CVIC address.
 	 * A3:  TRACEBUF
 	 * A4 : Data GPIO address
 	 * A5 : Clock GPIO address
 	 * A6 : CMD/RESP pointer
+	 * A7 : Stack pointer
 	 * D7 : clock GPIO cache (and data on Romulus)
 	 * D6 : data GPIO cache (when need
+	 * D5 : unused
 	 * D4 : data value
 	 * D3 : loop counter
 	 * D2 : command register
@@ -190,7 +193,7 @@ _vecs:
 	.global	_start
 _start:
 	/* Get base addresses */
-	movea.l	#SRAM_BASE_BE,%a0
+	movea.l	#SRAM_BASE_BE,%a1
 	movea.l	#GPIO_BASE,%a4
 	movea.l	%a4,%a5
 	add.l	#CLOCK_GPIO_REG,%a5
@@ -211,13 +214,16 @@ _start:
 	bset.l	#DATA_GPIO_BIT,%d0
 	move.l	%d0,%a4@(4)
 
+	/* Initialize A6 to point to command area */
+	lea	%a1@(CMD_DATA),%a6
+
 	/* Clear interrupt count */
 	moveq.l	#0,%d0
-	move.l	%d0,%a0@(INT_CNT)
+	move.l	%d0,%a1@(INT_CNT)
 
 	/* Install external interrupt vector */
-	lea	_int,%a6
-	move.l	%a6,(0x46*4)
+	lea	_int,%a0
+	move.l	%a0,(0x46*4)
 
 	/* Mask interrupts */
 	move.w	#0x2000,%sr
@@ -225,15 +231,14 @@ _start:
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
 
-	/**** Main loop ****/
+	/*
+	 * Main command loop
+	 */
 main_loop:
-	/* Initialize A6 to point to command area */
-	lea	%a0@(CMD_DATA),%a6
-
-	lea	%a0@(TRACEBUF),%a3
+	lea	%a1@(TRACEBUF),%a3
 
 	/* Wait for command */
-1:	move.l	%a0@(CMD_REG),%d2
+1:	move.l	%a1@(CMD_REG),%d2
 	tst.b	%d2
 	bne	1f
 	stop	#0x2000
@@ -243,10 +248,10 @@ main_loop:
 1:	move.w	#0x2007,%sr
 
 	/* Mark ourselves as sending a command */
-	move.b	#STAT_SENDING,%a0@(STAT_REG)
+	move.b	#STAT_SENDING,%a1@(STAT_REG)
 
 	/* Clear command register */
-	move.b	#CMD_NONE,%a0@(CMD_REG + 3)
+	move.b	#CMD_NONE,%a1@(CMD_REG + 3)
 
 	/* Start command ? */
 	cmpi.b	#CMD_COMMAND,%d2
@@ -257,9 +262,12 @@ main_loop:
 	beq	start_break
 
 	/* Error */
-	move.b	#STAT_ERR_INVAL_CMD,%a0@(STAT_REG)
+	move.b	#STAT_ERR_INVAL_CMD,%a1@(STAT_REG)
 	bra	main_loop
 
+	/*
+	 * Process a command
+	 */
 start_command:
 	/* Start bit */
 	moveq.l	#0,%d0
@@ -323,7 +331,7 @@ start_command:
 	beq	1f
 	subq.l	#1,%d3
 	bne	0b
-	move.b	#STAT_ERR_MTOE,%a0@(STAT_REG)
+	move.b	#STAT_ERR_MTOE,%a1@(STAT_REG)
 	bra	send_delay
 
 1:	/* Got start bit, clock in slave ID and response tag */
@@ -343,7 +351,7 @@ start_command:
 	and.l	%d0,%d4
 
 	/* Store into STAT_RTAG for host */
-	move.b	%d4,%a0@(STAT_RTAG)
+	move.b	%d4,%a1@(STAT_RTAG)
 
 	/* Extract tag part */
 	moveq	#0x7,%d0
@@ -368,7 +376,7 @@ start_command:
 
 	/* Invert data and store it */
 	not.l	%d4
-	move.l	%d4,%a0@(RSP_DATA)
+	move.l	%d4,%a1@(RSP_DATA)
 
 1:	/* Grab CRC */
 	trace	#TR_CLKCRC
@@ -384,10 +392,10 @@ start_command:
 	not.l	%d4
 	moveq.l	#0xf,%d0
 	and.l	%d0,%d4
-	move.b	%d4,%a0@(STAT_RCRC)
+	move.b	%d4,%a1@(STAT_RCRC)
 
 	/* Mark command complete */
-	move.b	#STAT_COMPLETE,%a0@(STAT_REG)
+	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
 
 send_delay:
 	/* Configure GPIOs to output */
@@ -399,7 +407,7 @@ send_delay:
 	bra	main_loop
 
 start_break:
-	move.b	#STAT_COMPLETE,%a0@(STAT_REG)
+	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
 	bra	main_loop
 
 config_gpio_out:
@@ -430,7 +438,7 @@ config_gpio_in:
 
 	/* Interrupt handler */
 _int:
-	addq.l	#1,%a0@(INT_CNT)
+	addq.l	#1,%a1@(INT_CNT)
 	moveq.l	#CVIC_SW_IRQ, %d0
 	move.l	%d0,%a2@(CVIC_SW_IRQ_CLR)
 	rte
@@ -441,7 +449,7 @@ _bad_exceptions:
 	.rept	256
 	.balign	0x10
 0:	move.b	#(0b - _bad_exceptions) / 0x10,%d0
-	move.b	%d0,%a0@(BAD_INT_VEC)
-	move.b	#STAT_ERR_INVAL_IRQ,%a0@(STAT_REG)
+	move.b	%d0,%a1@(BAD_INT_VEC)
+	move.b	#STAT_ERR_INVAL_IRQ,%a1@(STAT_REG)
 	halt
 	.endr
