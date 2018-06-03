@@ -1,25 +1,3 @@
-	.text
-
-_vecs:
-	/* Vectors */
-	.org	0
-
-	/* Boot vector */
-	.long	0x0ffff0	/* Stack below 1M */
-	.long	0x400		/* Start code */
-
-	/*
-	 * Remaining 254 vectors point to corresponding stubs
-	 * starting at 0x10000, 0x10 bytes each
-	 */
-	.rept	254
-0:	.long	0x10000 + (0b - _vecs) * 4
-	.endr
-
-	/* Main entry */
-	.org	0x400
-	.global	_start
-_start:
 	.equ	SRAM_BASE_BE,	0x320000
 	.equ	SRAM_BASE_LE,	0x720000
 	.equ	GPIO_BASE,	0x780000
@@ -183,6 +161,34 @@ _start:
 	.endif
 	.endm
 
+	/*
+	 * Beginning of code
+	*/
+
+	.text
+	.org	0
+
+	/*
+	 * m68k exception Vectors
+	 */
+_vecs:
+	/* Boot vector */
+	.long	0x0ffff0	/* Stack below 1M */
+	.long	0x400		/* Start code */
+
+	/* Remaining 254 vectors point to corresponding stubs
+	 * starting at 0x10000, 0x10 bytes each
+	 */
+	.rept	254
+0:	.long	0x10000 + (0b - _vecs) * 4
+	.endr
+
+	/*
+	 * Main entry point
+	 */
+	.org	0x400
+	.global	_start
+_start:
 	/* Get base addresses */
 	movea.l	#SRAM_BASE_BE,%a0
 	movea.l	#GPIO_BASE,%a4
