@@ -200,21 +200,56 @@ _start:
 	move.b	#FW_VERSION,%a1@(FW_VERS_REG)
 	move.b	#API_VERSION,%a1@(API_VERS_REG)
 
+	/* Clear arbitration register */
+	move.b	#0,%a1@(ARB_REG)
+
 	/*
 	 * Main command loop
 	 */
 main_loop:
 	lea	%a1@(TRACEBUF),%a3
 
-	/* Wait for command */
-1:	move.l	%a1@(CMD_REG),%d2
+	/* Wait arbitration request or command
+	 *
+	 * Note: This can run with interrupts enabled as a result of
+	 *       the stop op, so %d0 can be clobbered at any time.
+	 */
+1:	move.b	%a1@(ARB_REG),%d2
+	bne	arbitration_request
+	move.l	%a1@(CMD_REG),%d2
 	tst.b	%d2
-	bne	1f
+	bne	command_request
 	stop	#0x2000
 	bra	1b
 
+arbitration_request:
 	/* Mask interrupts */
-1:	move.w	#0x2007,%sr
+	move.w	#0x2007,%sr
+
+	/* Ack request */
+	move.b	#ARB_ARM_ACK,%a1@(ARB_REG)
+
+	/* Wait until it's cleared by the host */
+0:	move.b	%a1@(ARB_REG),%d1
+	bne	1f
+
+	/* Got it, re-load the GPIO caches */
+	move.l	%a5@(0),%DCLK
+	move.l	%a4@(0),%DDAT
+
+	/* Reconfigure data as output just in case ... */
+	bsr	config_gpio_out
+
+	/* Back to main loop */
+	bra	main_loop
+
+	/* Wait, we'll get an interrupt when the host clears it */
+1:	stop	#0x2000
+	bra	0b
+
+command_request:
+	/* Mask interrupts */
+	move.w	#0x2007,%sr
 
 	/* Mark ourselves as sending a command */
 	move.b	#STAT_SENDING,%a1@(STAT_REG)
@@ -443,10 +478,13 @@ config_gpio_in:
 	move.l	%d0,%a4@(4)
 	rts
 
-	/* Interrupt handler */
+	/* Interrupt handler
+	 *
+	 * Note: Must only clobber %d0
+	 */
 _int:
 	addq.l	#1,%a1@(INT_CNT)
-	moveq.l	#CVIC_SW_IRQ, %d0
+	moveq.l	#CVIC_SW_IRQ,%d0
 	move.l	%d0,%a2@(CVIC_SW_IRQ_CLR)
 	rte
 

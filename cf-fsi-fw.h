@@ -2,7 +2,7 @@
 #define __CF_FSI_FW_H
 
 /*
- *  SRAM layout
+ *  SRAM layout: Main part
  */
 
 /* Command register:
@@ -74,7 +74,7 @@
 /* Misc */
 #define	INT_CNT			0x30 /* 32-bit interrupt count */
 #define	BAD_INT_VEC		0x34
-#define	TRACEBUF		0x40
+#define	TRACEBUF		0x100
 #define	  TR_CLKOSTART		0x00
 #define	  TR_OLEN		0x01/* + len */
 #define	  TR_CLKOBIT0		0x02
@@ -86,6 +86,13 @@
 #define	  TR_CLKCRC		0x08 /* + raw crc */
 #define	  TR_CLKIBIT0		0x80
 #define	  TR_CLKIBIT1		0x81
+
+/*
+ *  SRAM layout: GPIO arbitration part
+ */
+#define ARB_REG			0x40
+#define  ARB_ARM_REQ		0x01
+#define  ARB_ARM_ACK		0x02
 
 #endif /* __CF_FSI_FW_H */
 
