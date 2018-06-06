@@ -56,6 +56,8 @@
 
 /* Signature & version */
 #define SYS_SIG_REG		0x0c /* 2 bytes system signature */
+#define  SYS_SIG_ROMULUS	0x526d /* 'Rm' */
+#define  SYS_SIG_WITHERSPOON	0x5773 /* 'Ws' */
 #define FW_VERS_REG		0x0e
 #define API_VERS_REG		0x0f
 
@@ -88,8 +90,8 @@
  * SRAM layout: Trace buffer (debug builds only)
  */
 #define	TRACEBUF		0x100
-#define	  TR_CLKOBIT0		0x80
-#define	  TR_CLKOBIT1		0x81
+#define	  TR_CLKOBIT0		0xc0
+#define	  TR_CLKOBIT1		0xc1
 #define	  TR_CLKOSTART		0x82
 #define	  TR_OLEN		0x83/* + len */
 #define	  TR_CLKZ		0x84 /* + count */
