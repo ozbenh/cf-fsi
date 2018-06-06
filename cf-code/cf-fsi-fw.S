@@ -318,11 +318,11 @@ start_command:
 	 *
 	 * Note: This assumes we have at least 1 bit to clock
 	 */
-	btst.b	#5,%d2
-	beq	1f
+	moveq	#32,%d3
+	cmp.b	%d3,%d2
+	blt	1f
 
 	/* Clock out 32 bits */
-	moveq	#32,%d3
 	sub.l	%d3,%d2
 0:	clock_out_bit %d4
 	lsl.l	#1,%d4
