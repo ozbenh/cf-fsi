@@ -104,7 +104,7 @@ static inline void writeq(uint64_t val, void *addr)
 #define GPIO_AA_SRC_BIT		0x00010000
 #define GPIO_R_SRC_BIT		0x00000100
 
-#define CVIC_BASE		0x000c2000	/* 1e602000 */
+#define CVIC_BASE		0x000c2000	/* 1e6c2000 */
 #define CVIC_EN_REG		0x10
 #define CVIC_TRIG_REG		0x18
 
