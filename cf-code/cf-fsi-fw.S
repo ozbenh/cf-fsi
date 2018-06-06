@@ -170,19 +170,27 @@ _start:
 	/* Store clock bit number */
 	moveq.l	#CLOCK_GPIO_BIT,%d5
 
-	/* Load GPIO values into caches and Configure clock & data GPIO as output */
+	/* Load GPIO values into caches and set initial values */
 	move.l	%a5@(0),%DCLK
 	move.l	%a4@(0),%DDAT
+	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
 	bset.l	#CLOCK_GPIO_BIT,%DCLK
 	bset.l	#DATA_GPIO_BIT,%DDAT
-	move.l	%DCLK, %a5@(0)
-	move.l	%DDAT, %a4@(0)
+	bset.l	#TRANS_GPIO_BIT,%DTRA
+	move.l	%DCLK,%a5@(0)
+	move.l	%DDAT,%a4@(0)
+	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+
+	/* Configure all GPIOs as output */
 	move.l	%a5@(4),%d0
 	bset.l	#CLOCK_GPIO_BIT,%d0
 	move.l	%d0,%a5@(4)
 	move.l	%a4@(4),%d0
 	bset.l	#DATA_GPIO_BIT,%d0
 	move.l	%d0,%a4@(4)
+	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG+4)
+	bset.l	#TRANS_GPIO_BIT,%d0
+	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG+4)
 
 	/* Initialize A6 to point to command area */
 	lea	%a1@(CMD_DATA),%a6
@@ -475,14 +483,12 @@ config_gpio_out:
 	move.l	%d0,%a4@(4)
 
 	/* Set transceivers to output */
-	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
 	bset.l	#TRANS_GPIO_BIT,%DTRA
 	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 	rts
 
 config_gpio_in:
 	/* Set transceiver to input */
-	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
 	bclr.l	#TRANS_GPIO_BIT,%DTRA
 	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
 
