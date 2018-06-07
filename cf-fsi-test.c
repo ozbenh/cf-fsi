@@ -43,24 +43,28 @@ static inline void writeb(uint8_t val, void *addr)
 {
 	dsb();
 	*(volatile uint8_t *)addr = val;
+	dsb();
 }
 
 static inline void writew(uint16_t val, void *addr)
 {
 	dsb();
 	*(volatile uint16_t *)addr = val;
+	dsb();
 }
 
 static inline void writel(uint32_t val, void *addr)
 {
 	dsb();
 	*(volatile uint32_t *)addr = val;
+	dsb();
 }
 
 static inline void writeq(uint64_t val, void *addr)
 {
 	dsb();
 	*(volatile uint64_t *)addr = val;
+	dsb();
 }
 
 #define SCU_REGS		0x000e2000	/* 1e6e2000 */
@@ -100,6 +104,9 @@ static inline void writeq(uint64_t val, void *addr)
 #define GPIO_YZAAAB_CMDSRC1	(GPIO_REGS + 0x174)
 #define GPIO_QRST_CMDSRC0	(GPIO_REGS + 0x110)
 #define GPIO_QRST_CMDSRC1	(GPIO_REGS + 0x114)
+#define GPIO_QRST_DATA		(GPIO_REGS + 0x080)
+#define GPIO_QRST_DIR		(GPIO_REGS + 0x084)
+#define GPIO_QRST_DATARD	(GPIO_REGS + 0x0d0)
 
 #define GPIO_AA_SRC_BIT		0x00010000
 #define GPIO_R_SRC_BIT		0x00000100
@@ -262,6 +269,105 @@ static void gpio_source_cf(void)
 	val |= GPIO_R_SRC_BIT;
 	writel(val, sysreg + GPIO_QRST_CMDSRC1);
 }
+
+#ifdef TEST_GPIO
+
+static void copro_gpio_request(void)
+{
+	int timeout;
+	uint32_t val;
+
+	/* Write reqest */
+	writeb(ARB_ARM_REQ, sysreg + SRAM_BASE + ARB_REG);
+
+	/* Ring doorbell */
+	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
+
+	for (timeout = 0; timeout < 1000000; timeout++) {
+		val = readb(sysreg + SRAM_BASE + ARB_REG);
+		if (val != ARB_ARM_REQ)
+			break;
+	}
+
+	/* If it failed, override anyway */
+	if (val != ARB_ARM_ACK)
+		printf("GPIO request arbitration timeout\n");
+}
+
+static void copro_gpio_release(void)
+{
+	/* Write release */
+	writeb(0, sysreg + SRAM_BASE + ARB_REG);
+
+	/* Ring doorbell */
+	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
+}
+
+static bool no_release = false;
+static bool no_switch_own = false;
+
+#define GPIO_TEST_BIT	0x2000
+static void test_gpio_stuff(void)
+{
+	uint32_t cache = readl(sysreg + GPIO_QRST_DATA);
+	uint32_t val;
+	bool good, first = true;
+
+	if (no_release)
+		copro_gpio_request();
+
+	printf("t0: dir=%08x\n", readl(sysreg + GPIO_QRST_DIR));
+
+	for (;;) {
+		val = readl(sysreg + GPIO_QRST_DATARD);
+		good = ((val ^ cache) & GPIO_TEST_BIT) == 0;
+		printf("t1: cache=%08x reg=%08x %c\n", cache, val, good ? ' ' : '$');
+
+		if (!no_release)
+			copro_gpio_request();
+
+		writel(0, sysreg + SRAM_BASE + 0x3c);
+
+		if (!no_switch_own || first) {
+			first = false;
+			val = readl(sysreg + GPIO_QRST_CMDSRC1);
+			val &= ~GPIO_R_SRC_BIT;
+			writel(val, sysreg + GPIO_QRST_CMDSRC1);
+			val = readl(sysreg + GPIO_QRST_CMDSRC0);
+			val &= ~GPIO_R_SRC_BIT;
+			writel(val, sysreg + GPIO_QRST_CMDSRC0);
+		}
+
+		cache ^= GPIO_TEST_BIT;
+		writel(cache, sysreg + GPIO_QRST_DATA);
+
+		do {
+			val = readl(sysreg + GPIO_QRST_DATARD);
+			good = ((val ^ cache) & GPIO_TEST_BIT) == 0;
+			printf("t2: cache=%08x reg=%08x %c\n", cache, val, good ? '*' : '!');
+		} while(!good);
+
+		if (!no_switch_own) {
+			val = readl(sysreg + GPIO_QRST_CMDSRC1);
+			val |= GPIO_R_SRC_BIT;
+			writel(val, sysreg + GPIO_QRST_CMDSRC1);
+			val = readl(sysreg + GPIO_QRST_CMDSRC0);
+			val &= ~GPIO_R_SRC_BIT;
+			writel(val, sysreg + GPIO_QRST_CMDSRC0);
+		}
+
+		if (!no_release)
+			copro_gpio_release();
+
+		usleep(1);
+		printf("t3: cache=%08x reg=%08x\n---\n",
+		       cache, readl(sysreg + GPIO_QRST_DATARD));
+
+		sleep(1);
+	}
+}
+
+#endif
 
 static const uint8_t crc4_tab[] = {
 	0x0, 0x7, 0xe, 0x9, 0xb, 0xc, 0x5, 0x2,
@@ -679,8 +785,11 @@ int main(int argc, char *argv[])
 	test_rw(FSI_SLAVE_BASE + FSI_SMODE, false, &val);
 	printf("new smode: %08x\n", val);
 
+#ifdef TEST_GPIO
+	test_gpio_stuff();
+#else
 	bench();
-
+#endif
 	gpio_source_arm();
 
 	return 0;
