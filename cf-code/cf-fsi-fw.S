@@ -39,17 +39,19 @@
 	 * potential overlaps
 	 */
 #define DCLK d7
-#if CLOCK_GPIO_REG == DATA_GPIO_REG
+
+#if CLOCK_GPIO_VREG == DATA_GPIO_VEG
 #define DDAT d7
 #else
 #define DDAT d6
 #endif
-#if TRANS_GPIO_REG == CLOCK_GPIO_REG
+
+#if TRANS_GPIO_VREG == CLOCK_GPIO_VREG
 #define DTRA d7
-#elif TRANS_GPIO_REG == DATA_GPIO_REG
+#elif TRANS_GPIO_VREG == DATA_GPIO_VREG
 #define DTRA d6
 #else
-#define DTRA d0
+#define DTRA d1	/* Temp, not a cache */
 #endif
 
 	/* Tracing macro */
@@ -90,7 +92,7 @@
 	 * value along with the low clock edge. Thus we don't need to
 	 * set it here, thus saving a PCLK
 	*/
-#if DATA_GPIO_REG != CLOCK_GPIO_REG
+#if DATA_GPIO_VREG != CLOCK_GPIO_VREG
 	move.l	%DDAT,%a4@(0)
 #endif
 	clock_toggle
@@ -101,7 +103,7 @@
 	trace	#TR_CLKZ
 	trace	\reg
 	bset.l	#DATA_GPIO_BIT,%DDAT
-#if DATA_GPIO_REG != CLOCK_GPIO_REG
+#if DATA_GPIO_VREG != CLOCK_GPIO_VREG
 	move.l	%DDAT,%a4@(0)
 #endif
 99:	clock_toggle
@@ -163,23 +165,32 @@ _start:
 	movea.l	#SRAM_BASE_BE,%a1
 	movea.l	#GPIO_BASE,%a4
 	movea.l	%a4,%a5
-	add.l	#CLOCK_GPIO_REG,%a5
-	add.l	#DATA_GPIO_REG,%a4
+	add.l	#CLOCK_GPIO_VREG,%a5
+	add.l	#DATA_GPIO_VREG,%a4
 	movea.l	#CVIC_BASE,%a2
 
 	/* Store clock bit number */
 	moveq.l	#CLOCK_GPIO_BIT,%d5
 
-	/* Load GPIO values into caches and set initial values */
-	move.l	%a5@(0),%DCLK
-	move.l	%a4@(0),%DDAT
-	move.l	%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG),%DTRA
+	/*
+	 * Load GPIO values into caches and set initial values
+	 *
+	 * Note: We load from the "Data Read" register which
+	 *       contains the value of the write latch, and not
+	 *       the "Value" register which, when read, returns
+	 *       the value sampled on the line. The reason is that
+	 *       the value can be missing recent changes due to
+	 *       being behind synchronizers.
+	 */
+	move.l	%a5@(CLOCK_GPIO_DREG-CLOCK_GPIO_VREG),%DCLK
+	move.l	%a4@(DATA_GPIO_DREG-DATA_GPIO_VREG),%DDAT
+	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
 	bset.l	#CLOCK_GPIO_BIT,%DCLK
 	bset.l	#DATA_GPIO_BIT,%DDAT
 	bset.l	#TRANS_GPIO_BIT,%DTRA
 	move.l	%DCLK,%a5@(0)
 	move.l	%DDAT,%a4@(0)
-	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+	move.l	%DTRA,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG)
 
 	/* Configure all GPIOs as output */
 	move.l	%a5@(4),%d0
@@ -188,9 +199,9 @@ _start:
 	move.l	%a4@(4),%d0
 	bset.l	#DATA_GPIO_BIT,%d0
 	move.l	%d0,%a4@(4)
-	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG+4)
+	move.l	%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG+4),%d0
 	bset.l	#TRANS_GPIO_BIT,%d0
-	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG+4)
+	move.l	%d0,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG+4)
 
 	/* Initialize A6 to point to command area */
 	lea	%a1@(CMD_DATA),%a6
@@ -483,14 +494,16 @@ config_gpio_out:
 	move.l	%d0,%a4@(4)
 
 	/* Set transceivers to output */
+	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
 	bset.l	#TRANS_GPIO_BIT,%DTRA
-	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+	move.l	%DTRA,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG)
 	rts
 
 config_gpio_in:
 	/* Set transceiver to input */
+	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
 	bclr.l	#TRANS_GPIO_BIT,%DTRA
-	move.l	%DTRA,%a5@(TRANS_GPIO_REG-CLOCK_GPIO_REG)
+	move.l	%DTRA,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG)
 
 	/* Configure data GPIO as input */
 	move.l	%a4@(4),%d0
