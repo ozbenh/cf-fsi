@@ -173,6 +173,21 @@ _start:
 	moveq.l	#CLOCK_GPIO_BIT,%d5
 
 	/*
+	 * Check arbitration register early. There's a case where an arbitration request
+	 * might have occurred right as we were starting the coprocessor. In that case,
+	 * wait until we get back ownership
+	 */
+	move.b	%a1@(ARB_REG),%d2
+	beq	1f
+
+	/* Ack it */
+	move.b	#ARB_ARM_ACK,%a1@(ARB_REG)
+
+	/* Wait until it's cleared by the host */
+0:	move.b	%a1@(ARB_REG),%d1
+	bne	0b
+
+1:	/*
 	 * Load GPIO values into caches and set initial values
 	 *
 	 * Note: We load from the "Data Read" register which
@@ -219,9 +234,6 @@ _start:
 
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
-
-	/* Clear arbitration register */
-	move.b	#0,%a1@(ARB_REG)
 
 	/* Populate version & signature */
 	move.w	#SYS_SIG,%a1@(SYS_SIG_REG)
