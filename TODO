@@ -4,5 +4,7 @@
 - Add header with version etc...
 - Put config in header so host can configure address of "SRAM" (command area)
   -> Try moving code into SRAM (reduce exception vector space)
+- MTOE count configurable
+- File Makefile to add missing dependency of ucodes on cf-fsi-fw.h 
 - ...
 
