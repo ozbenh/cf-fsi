@@ -430,6 +430,12 @@ static void msg_push_crc(struct fsi_gpio_msg *msg)
 	msg_push_bits(msg, crc, 4);
 }
 
+static void msg_finish_cmd(struct fsi_gpio_msg *cmd)
+{
+	/* Left align message */
+	cmd->msg <<= (64 - cmd->bits);
+}
+
 static bool check_same_address(int id, uint32_t addr)
 {
 	/* this will also handle LAST_ADDR_INVALID */
@@ -531,6 +537,7 @@ static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
 		msg_push_bits(cmd, ((uint8_t *)data)[i], 8);
 
 	msg_push_crc(cmd);
+	msg_finish_cmd(cmd);
 }
 
 static void dump_stuff(void)
@@ -609,9 +616,6 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 		build_ar_command(&cmd, 0, addr, 4, &be_data);
 	} else
 		build_ar_command(&cmd, 0, addr, 4, NULL);
-
-	/* Left align message */
-	cmd.msg <<= (64 - cmd.bits);
 
 	/* Store message into SRAM */
 	writel(htonl(cmd.msg >> 32), sysreg + SRAM_BASE + CMD_DATA);
