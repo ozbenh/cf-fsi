@@ -1,0 +1,8 @@
+- Provide trace size in status
+- Play with putting status code in cmd reg to avoid clearing by host
+- Play with writing RTAG and RCRC in one write
+- Add header with version etc...
+- Put config in header so host can configure address of "SRAM" (command area)
+  -> Try moving code into SRAM (reduce exception vector space)
+- ...
+
