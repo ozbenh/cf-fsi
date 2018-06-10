@@ -40,7 +40,7 @@
 	 */
 #define DCLK d7
 
-#if CLOCK_GPIO_VREG == DATA_GPIO_VEG
+#if CLOCK_GPIO_VREG == DATA_GPIO_VREG
 #define DDAT d7
 #else
 #define DDAT d6
