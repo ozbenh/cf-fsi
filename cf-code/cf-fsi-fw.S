@@ -25,8 +25,8 @@
 	 * A5 : Clock GPIO address
 	 * A6 : CMD/RESP pointer
 	 * A7 : Stack pointer
-	 * D7 : clock GPIO cache (and data on Romulus)
-	 * D6 : data GPIO cache (when needed)
+	 * D7 : clock/data/trans GPIO cache
+	 * D6 : data/trans GPIO cache
 	 * D5 : clock bit number
 	 * D4 : data value
 	 * D3 : loop counter
@@ -52,8 +52,11 @@
 #define DTRA d7
 #elif TRANS_GPIO_VREG == DATA_GPIO_VREG
 #define DTRA d6
+#elif CLOCK_GPIO_VREG == DATA_GPIO_VREG
+#define DTRA d6
 #else
 #define DTRA d1	/* Temp, not a cache */
+#define DTRA_UNCACHED
 #endif
 
 	/* Tracing macro */
@@ -171,7 +174,7 @@ _start:
 	add.l	#DATA_GPIO_VREG,%a4
 	movea.l	#CVIC_BASE,%a2
 
-	/* Store clock bit number */
+	/* Cache clock bit number */
 	moveq.l	#CLOCK_GPIO_BIT,%d5
 
 	/*
@@ -508,14 +511,18 @@ config_gpio_out:
 	move.l	%d0,%a4@(4)
 
 	/* Set transceivers to output */
+#ifdef DTRA_UNCACHED
 	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
+#endif
 	bset.l	#TRANS_GPIO_BIT,%DTRA
 	move.l	%DTRA,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG)
 	rts
 
 config_gpio_in:
 	/* Set transceiver to input */
+#ifdef DTRA_UNCACHED
 	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
+#endif
 	bclr.l	#TRANS_GPIO_BIT,%DTRA
 	move.l	%DTRA,%a5@(TRANS_GPIO_VREG-CLOCK_GPIO_VREG)
 
