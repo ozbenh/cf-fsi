@@ -222,12 +222,26 @@ static void start_cf(void)
 static void load_cf_code(void)
 {
 	extern uint8_t cf_code_start, cf_code_end;
+	uint16_t sig, fw_vers, api_vers;
+	uint32_t fw_options;
 
 	uint8_t *code = &cf_code_start;
 	uint8_t *mem = cfmem;
 
 	while(code < &cf_code_end)
 		writeb(*(code++), mem++);
+
+	sig = ntohs(readw(cfmem + HDR_OFFSET + HDR_SYS_SIG));
+	fw_vers = ntohs(readw(cfmem + HDR_OFFSET + HDR_FW_VERS));
+	api_vers = ntohs(readw(cfmem + HDR_OFFSET + HDR_API_VERS));
+	fw_options = ntohl(readl(cfmem + HDR_OFFSET + HDR_FW_OPTIONS));
+
+	trace_enabled = !!(fw_options & FW_OPTION_TRACE_EN);
+
+	printf("SYS_SIG=%.4x FW_VERSION=%d API_VERSION=%d.%d (trace %s)\n",
+	       sig, fw_vers, api_vers >> 8, api_vers & 0xff,
+	       trace_enabled ? "enabled" : "disabled");
+
 }
 
 static void gpio_source_arm(void)
@@ -544,9 +558,8 @@ static void dump_stuff(void)
 {
 	int i;
 
-	printf("CMD:%08x STAT:%02x RTAG=%02x RCRC=%02x RDATA=%02x #INT=%08x\n",
-	       ntohl(readl(sysreg + SRAM_BASE + CMD_REG)),
-	       readb(sysreg + SRAM_BASE + STAT_REG),
+	printf("CMD:%08x RTAG=%02x RCRC=%02x RDATA=%02x #INT=%08x\n",
+	       ntohl(readl(sysreg + SRAM_BASE + CMD_STAT_REG)),
 	       readb(sysreg + SRAM_BASE + STAT_RTAG),
 	       readb(sysreg + SRAM_BASE + STAT_RCRC),
 	       ntohl(readl(sysreg + SRAM_BASE + RSP_DATA)),
@@ -564,11 +577,8 @@ static int do_command(uint32_t op)
 	uint32_t timeout = 100000;
 	uint8_t stat;
 
-	/* Clear status reg */
-	writeb(0, sysreg + SRAM_BASE + STAT_REG);
-
 	/* Send command */
-	writel(htonl(op), sysreg + SRAM_BASE + CMD_REG);
+	writel(htonl(op), sysreg + SRAM_BASE + CMD_STAT_REG);
 
 	/* Ring doorbell */
 	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
@@ -581,7 +591,7 @@ static int do_command(uint32_t op)
 			dump_stuff();
 			return -ETIMEDOUT;
 		}
-		stat = readb(sysreg + SRAM_BASE + STAT_REG);
+		stat = readb(sysreg + SRAM_BASE + CMD_STAT_REG);
 	} while(stat < STAT_COMPLETE || stat == 0xff);
 
 	if (stat == STAT_COMPLETE)
@@ -738,18 +748,10 @@ int main(int argc, char *argv[])
 	/* Start ColdFire */
 	start_cf();
 
-	/* Wait for ack API version register*/
+	/* Wait for status register to say command complete */
 	do {
-		val = readb(sysreg + SRAM_BASE + API_VERS_REG);
+		val = readb(sysreg + SRAM_BASE + CMD_STAT_REG);
 	} while (val == 0x00);
-
-	trace_enabled = !!(val & API_VERSION_TRACE_EN);
-
-	printf("SYS_SIG=%.4x FW_VERSION=%d API_VERSION=%d (trace %s)\n",
-	       ntohs(readw(sysreg + SRAM_BASE + SYS_SIG_REG)),
-	       readb(sysreg + SRAM_BASE + FW_VERS_REG),
-	       val & API_VERSION_MASK,
-	       trace_enabled ? "enabled" : "disabled");
 
 	/* Configure echo & send delay */
 	writeb(16, sysreg + SRAM_BASE + ECHO_DLY_REG);

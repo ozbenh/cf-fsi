@@ -2,16 +2,52 @@
 #define __CF_FSI_FW_H
 
 /*
- *  SRAM layout: Main part
+ * uCode file layout
+ *
+ * 0000...03ff : m68k exception vectors
+ * 0400...04ff : Header info & boot config block
+ * 0500....... : Code & stack
  */
 
-/* Command register:
+/*
+ * Header info & boot config area
+ *
+ * The Header info is built into the ucode and provide version and
+ * platform information.
+ *
+ * the Boot config needs to be adjusted by the ARM prior to starting
+ * the ucode if the Command/Status area isn't at 0x320000 in CF space
+ * (ie. beginning of SRAM).
+ */
+
+#define HDR_OFFSET	        0x400
+
+/* Info: Signature & version */
+#define HDR_SYS_SIG		0x00	/* 2 bytes system signature */
+#define  SYS_SIG_ROMULUS	0x526d		/* 'Rm' */
+#define  SYS_SIG_WITHERSPOON	0x5773		/* 'Ws' */
+#define HDR_FW_VERS		0x02	/* 2 bytes Major.Minor */
+#define HDR_API_VERS		0x04	/* 2 bytes Major.Minor */
+#define  API_VERSION_MAJ	1	/* Current version */
+#define  API_VERSION_MIN	1
+#define HDR_FW_OPTIONS		0x08	/* 4 bytes option flags */
+#define   FW_OPTION_TRACE_EN	0x00000001	/* FW tracing enabled */
+
+/* Boot Config: Address of Command/Status area */
+#define HDR_CMD_STAT_AREA	0x80	/* 4 bytes CF address */
+
+/*
+ *  Command/Status area layout: Main part
+ */
+
+/* Command/Status register:
  *
  * +---------------------------+
- * | rsvd | RLEN | CLEN | CMD  |
+ * | STAT | RLEN | CLEN | CMD  |
  * |   8  |   8  |   8  |   8  |
  * +---------------------------+
- *            |      |      |
+ *    |       |      |      |
+ *    status  |      |      |
  * Response len      |      |
  * (in bits)         |      |
  *                   |      |
@@ -19,8 +55,11 @@
  *         (in bits)        |
  *                          |
  *               Command code
+ *
+ * Due to the big endian layout, that means that a byte read will
+ * return the status byte
  */
-#define	CMD_REG			0x00
+#define	CMD_STAT_REG	        0x00
 #define  CMD_REG_CMD_MASK	0x000000ff
 #define  CMD_REG_CMD_SHIFT	0
 #define	  CMD_NONE		0x00
@@ -32,39 +71,23 @@
 #define  CMD_REG_CLEN_SHIFT	8
 #define  CMD_REG_RLEN_MASK	0x00ff0000
 #define  CMD_REG_RLEN_SHIFT	16
+#define  CMD_REG_STAT_MASK	0xff000000
+#define  CMD_REG_STAT_SHIFT	24
+#define	  STAT_WORKING		0x00
+#define	  STAT_COMPLETE		0x01
+#define	  STAT_ERR_INVAL_CMD	0x80
+#define	  STAT_ERR_INVAL_IRQ	0x81
+#define	  STAT_ERR_MTOE		0x82
 
-/* Status register
- *
- */
-#define	STAT_REG		0x04 /* Status */
-#define	 STAT_STOPPED		0x00
-#define	 STAT_SENDING		0x01
-#define	 STAT_COMPLETE		0x02
-#define	 STAT_ERR_INVAL_CMD	0x80
-#define	 STAT_ERR_INVAL_IRQ	0x81
-#define	 STAT_ERR_MTOE		0x82
-
-/* Response tag */
-#define	STAT_RTAG		0x05
+/* Response tag & CRC */
+#define	STAT_RTAG		0x04
 
 /* Response CRC */
-#define	STAT_RCRC		0x06
+#define	STAT_RCRC		0x05
 
 /* Echo and Send delay */
 #define	ECHO_DLY_REG		0x08
 #define	SEND_DLY_REG		0x09
-
-/* Signature & version */
-#define SYS_SIG_REG		0x0c /* 2 bytes system signature */
-#define  SYS_SIG_ROMULUS	0x526d /* 'Rm' */
-#define  SYS_SIG_WITHERSPOON	0x5773 /* 'Ws' */
-#define FW_VERS_REG		0x0e
-#define API_VERS_REG		0x0f
-
-/* Current API version */
-#define API_VERSION_MASK	0x7f
-#define API_VERSION		1
-#define API_VERSION_TRACE_EN	0x80
 
 /* Command data area
  *

@@ -161,13 +161,37 @@ _vecs:
 	.endr
 
 	/*
-	 * Main entry point
+	 * Header info
 	 */
 	.org	0x400
+_header_info:
+	.short	SYS_SIG			/* 0x00 */
+	.short	FW_VERSION		/* 0x02 */
+	.byte	API_VERSION_MAJ		/* 0x04 */
+	.byte	API_VERSION_MIN		/* 0x05 */
+	.byte	0,0			/* 0x06 pad */
+#ifdef ENABLE_TRACE
+	.long	FW_OPTION_TRACE_EN	/* 0x08 */
+#else
+	.long	0
+#endif
+
+	/*
+	 * Config area
+	*/
+	.org	0x400 + HDR_CMD_STAT_AREA
+_cmd_stat_base:
+	.long	SRAM_BASE_BE
+
+	/*
+	 * Main entry point
+	 */
+	.org	0x500
 	.global	_start
 _start:
 	/* Get base addresses */
-	movea.l	#SRAM_BASE_BE,%a1
+	lea	%pc@(_cmd_stat_base),%a0
+	movea.l	%a0@(0),%a1
 	movea.l	#GPIO_BASE,%a4
 	movea.l	%a4,%a5
 	add.l	#CLOCK_GPIO_VREG,%a5
@@ -240,18 +264,8 @@ _start:
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
 
-	/* Populate version & signature */
-	move.w	#SYS_SIG,%a1@(SYS_SIG_REG)
-	move.b	#FW_VERSION,%a1@(FW_VERS_REG)
-
-	/* This must happen last as it's the signal to the host
-	 * that we are ready
-	 */
-#ifdef ENABLE_TRACE
-	move.b	#(API_VERSION + API_VERSION_TRACE_EN),%a1@(API_VERS_REG)
-#else
-	move.b	#API_VERSION,%a1@(API_VERS_REG)
-#endif
+	/* Mark command complete, indicates we are ready */
+	move.b	#STAT_COMPLETE,%a1@(CMD_STAT_REG)
 
 	/*
 	 * Main command loop
@@ -266,7 +280,7 @@ main_loop:
 	 */
 1:	move.b	%a1@(ARB_REG),%d2
 	bne	arbitration_request
-	move.l	%a1@(CMD_REG),%d2
+	move.l	%a1@(CMD_STAT_REG),%d2
 	tst.b	%d2
 	bne	command_request
 	stop	#0x2000
@@ -301,11 +315,9 @@ command_request:
 	/* Mask interrupts */
 	move.w	#0x2007,%sr
 
-	/* Mark ourselves as sending a command */
-	move.b	#STAT_SENDING,%a1@(STAT_REG)
-
-	/* Clear command register */
-	move.b	#CMD_NONE,%a1@(CMD_REG + 3)
+	/* Clear the command/status register */
+	moveq.l	#0,%d0
+	move.l	%d0,%a1@(CMD_STAT_REG)
 
 	/* Start command ? */
 	cmpi.b	#CMD_COMMAND,%d2
@@ -320,7 +332,7 @@ command_request:
 	beq	start_idle_clocks
 
 	/* Error */
-	move.b	#STAT_ERR_INVAL_CMD,%a1@(STAT_REG)
+	move.b	#STAT_ERR_INVAL_CMD,%a1@(CMD_STAT_REG)
 	bra	main_loop
 
 	/*
@@ -389,7 +401,7 @@ start_command:
 	beq	1f
 	subq.l	#1,%d3
 	bne	0b
-	move.b	#STAT_ERR_MTOE,%a1@(STAT_REG)
+	move.b	#STAT_ERR_MTOE,%a1@(CMD_STAT_REG)
 	bra	send_delay
 
 1:	/* Got start bit, clock in slave ID and response tag */
@@ -454,7 +466,9 @@ start_command:
 	move.b	%d4,%a1@(STAT_RCRC)
 
 	/* Mark command complete */
-	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
+	moveq.l	#STAT_COMPLETE,%d0
+	byterev	%d0
+	move.l	%d0,%a1@(CMD_STAT_REG)
 
 send_delay:
 	/* Send delay after every command */
@@ -485,8 +499,11 @@ start_break:
 	move.l	#FSI_POST_BREAK_CLOCKS,%d3
 	clock_out_zeros %d3
 
-	/* That's it */
-	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
+	/* Mark command complete */
+	moveq.l	#STAT_COMPLETE,%d0
+	byterev	%d0
+	move.l	%d0,%a1@(CMD_STAT_REG)
+
 	bra	main_loop
 
 start_idle_clocks:
@@ -498,8 +515,11 @@ start_idle_clocks:
 	move.b	%d2,%d3
 	clock_out_zeros %d3
 
-	/* That's it */
-	move.b	#STAT_COMPLETE,%a1@(STAT_REG)
+	/* Mark command complete */
+	moveq.l	#STAT_COMPLETE,%d0
+	byterev	%d0
+	move.l	%d0,%a1@(CMD_STAT_REG)
+
 	bra	main_loop
 
 config_gpio_out:
@@ -549,7 +569,7 @@ bad_exception:
 	sub.l	%d1,%d0
 	lsr.l	#2,%d0
 	move.b	%d0,%a1@(BAD_INT_VEC)
-	move.b	#STAT_ERR_INVAL_IRQ,%a1@(STAT_REG)
+	move.b	#STAT_ERR_INVAL_IRQ,%a1@(CMD_STAT_REG)
 	halt
 
 	/* Bad exception stubs */
