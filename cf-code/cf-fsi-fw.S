@@ -425,7 +425,7 @@ start_command:
 	move.b	%d4,%a1@(STAT_RTAG)
 
 	/* Extract tag part */
-	moveq	#0x7,%d0
+	moveq	#0x3,%d0
 	and.l	%d0,%d4
 
 	/* If non-0, no data, go get CRC */
