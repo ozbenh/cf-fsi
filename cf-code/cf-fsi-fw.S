@@ -154,7 +154,7 @@ _vecs:
 	 * starting at 0x10000, 0x10 bytes each
 	 */
 	.rept	254
-0:	.long	0x10000 + (0b - _vecs) * 4
+0:	.long	_bad_exceptions + (0b - _vecs)
 	.endr
 
 	/*
@@ -535,15 +535,20 @@ _int:
 	move.l	%d0,%a2@(CVIC_SW_IRQ_CLR)
 	rte
 
-	/* Bad exception stubs */
-	.org	0x10000
-_bad_exceptions:
-	.rept	256
-	.balign	0x10
-0:	move.b	#(0b - _bad_exceptions) / 0x10,%d0
+	/* Bad exception handler */
+bad_exception:
+	move.l	%a7@+,%d0
+	move.l	_bad_exceptions + 4,%d1
+	sub.l	%d1,%d0
+	lsr.l	#2,%d0
 	move.b	%d0,%a1@(BAD_INT_VEC)
 	move.b	#STAT_ERR_INVAL_IRQ,%a1@(STAT_REG)
 	halt
+
+	/* Bad exception stubs */
+_bad_exceptions:
+	.rept	256
+	bsr.w	bad_exception
 	.endr
 
 	/* Stack */
