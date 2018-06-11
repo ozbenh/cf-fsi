@@ -264,8 +264,8 @@ _start:
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
 
-	/* Mark command complete, indicates we are ready */
-	move.b	#STAT_COMPLETE,%a1@(CMD_STAT_REG)
+	/* Indicate that we are started */
+	mov3q.l	#0xffffffff,%a1@(CF_STARTED)
 
 	/*
 	 * Main command loop

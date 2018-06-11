@@ -755,7 +755,7 @@ int main(int argc, char *argv[])
 
 	/* Wait for status register to say command complete */
 	do {
-		val = readb(sysreg + SRAM_BASE + CMD_STAT_REG);
+		val = readl(sysreg + SRAM_BASE + CF_STARTED);
 	} while (val == 0x00);
 
 	/* Configure echo & send delay */
