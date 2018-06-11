@@ -20,7 +20,7 @@ M68KCPPFLAGS = -DFW_VERSION=$(FW_VERSION)
 ifeq ($(DEBUG),1)
 M68KCPPFLAGS += -DENABLE_TRACE
 endif
-M68KAFLAGS = -march=isac
+M68KAFLAGS = -march=isac --pcrel -k
 M68KLDFLAGS = -Ttext 0
 
 # FW code files

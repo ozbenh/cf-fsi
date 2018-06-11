@@ -228,7 +228,7 @@ _start:
 	move.l	%d0,%a1@(INT_CNT)
 
 	/* Install external interrupt vector */
-	lea	_int,%a0
+	lea	%pc@(_int),%a0
 	move.l	%a0,(0x46*4)
 
 	/* Mask interrupts */
