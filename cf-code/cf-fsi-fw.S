@@ -5,6 +5,8 @@
 	.equ	GPIO_BASE,	0x780000
 	.equ	CVIC_BASE,	0x6c2000
 
+	.equ	STACK_SIZE,	0x100		/* 256 bytes of stack is enough */
+
 	.equ	CVIC_STATUS,		0x00
 	.equ	CVIC_SW_IRQ_CLR,	0x1c
 	.equ	CVIC_SW_IRQ,		0x2
@@ -145,8 +147,8 @@
 	 */
 _vecs:
 	/* Boot vector */
-	.long	0x0ffff0	/* Stack below 1M */
-	.long	0x400		/* Start code */
+	.long	_stack_top		/* Stack below 1M */
+	.long	_start			/* Start code */
 
 	/* Remaining 254 vectors point to corresponding stubs
 	 * starting at 0x10000, 0x10 bytes each
@@ -543,3 +545,8 @@ _bad_exceptions:
 	move.b	#STAT_ERR_INVAL_IRQ,%a1@(STAT_REG)
 	halt
 	.endr
+
+	/* Stack */
+	.balign	0x10
+	.space	STACK_SIZE
+_stack_top:
