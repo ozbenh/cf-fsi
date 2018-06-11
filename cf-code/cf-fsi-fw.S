@@ -332,6 +332,7 @@ command_request:
 	beq	start_idle_clocks
 
 	/* Error */
+	trace	#TR_END
 	move.b	#STAT_ERR_INVAL_CMD,%a1@(CMD_STAT_REG)
 	bra	main_loop
 
@@ -401,6 +402,7 @@ start_command:
 	beq	1f
 	subq.l	#1,%d3
 	bne	0b
+	trace	#TR_END
 	move.b	#STAT_ERR_MTOE,%a1@(CMD_STAT_REG)
 	bra	send_delay
 
@@ -465,6 +467,9 @@ start_command:
 	and.l	%d0,%d4
 	move.b	%d4,%a1@(STAT_RCRC)
 
+	/* End trace */
+	trace	#TR_END
+
 	/* Mark command complete */
 	moveq.l	#STAT_COMPLETE,%d0
 	byterev	%d0
@@ -499,6 +504,9 @@ start_break:
 	move.l	#FSI_POST_BREAK_CLOCKS,%d3
 	clock_out_zeros %d3
 
+	/* End trace */
+	trace	#TR_END
+
 	/* Mark command complete */
 	moveq.l	#STAT_COMPLETE,%d0
 	byterev	%d0
@@ -514,6 +522,9 @@ start_idle_clocks:
 	moveq	#0,%d3
 	move.b	%d2,%d3
 	clock_out_zeros %d3
+
+	/* End trace */
+	trace	#TR_END
 
 	/* Mark command complete */
 	moveq.l	#STAT_COMPLETE,%d0

@@ -566,10 +566,15 @@ static void dump_stuff(void)
 	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
 
 	for (i = 0; trace_enabled && i < 128; i++) {
-		printf("%02x ", readb(sysreg + SRAM_BASE + TRACEBUF + i));
+		uint8_t v = readb(sysreg + SRAM_BASE + TRACEBUF + i);
+		printf("%02x ", v);
 		if ((i % 16) == 15)
 			printf("\n");
+		if (v == TR_END)
+			break;
 	}
+	if (i % 16)
+		printf("\n");
 }
 
 static int do_command(uint32_t op)

@@ -116,7 +116,7 @@
 #define	  TR_CLKOBIT0		0xc0
 #define	  TR_CLKOBIT1		0xc1
 #define	  TR_CLKOSTART		0x82
-#define	  TR_OLEN		0x83/* + len */
+#define	  TR_OLEN		0x83 /* + len */
 #define	  TR_CLKZ		0x84 /* + count */
 #define	  TR_CLKWSTART		0x85
 #define	  TR_CLKTAG		0x86 /* + tag */
@@ -124,6 +124,7 @@
 #define	  TR_CLKCRC		0x88 /* + raw crc */
 #define	  TR_CLKIBIT0		0x90
 #define	  TR_CLKIBIT1		0x91
+#define	  TR_END		0xff
 
 #endif /* __CF_FSI_FW_H */
 
