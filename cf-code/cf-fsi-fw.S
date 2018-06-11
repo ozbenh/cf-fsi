@@ -23,7 +23,7 @@
 	 * A3:  TRACEBUF
 	 * A4 : Data GPIO address
 	 * A5 : Clock GPIO address
-	 * A6 : CMD/RESP pointer
+	 * A6 : CMD pointer
 	 * A7 : Stack pointer
 	 * D7 : clock/data/trans GPIO cache
 	 * D6 : data/trans GPIO cache
@@ -124,7 +124,7 @@
 	move.l	%DCLK,%a5@(0)
 	move.l	%a4@(0),\tmp		/* dummy read */
 	move.l	%a4@(0),\tmp		/* actual read */
-	bset.l	%d5,%DCLK	/* clock high */
+	bset.l	%d5,%DCLK		/* clock high */
 	move.l	%DCLK,%a5@(0)
 	moveq.l	#DATA_GPIO_BIT,\tmp2
 	lsr.l	\tmp2,\tmp
