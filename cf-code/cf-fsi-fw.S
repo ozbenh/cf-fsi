@@ -297,6 +297,9 @@ arbitration_request:
 0:	move.b	%a1@(ARB_REG),%d1
 	bne	1f
 
+	/* Mask interrupts */
+	move.w	#0x2007,%sr
+
 	/* Got it, re-load the GPIO caches */
 	move.l	%a5@(0),%DCLK
 	move.l	%a4@(0),%DDAT
@@ -570,9 +573,11 @@ config_gpio_in:
 	 * Note: Must only clobber %d0
 	 */
 _int:
+	move.l	%d0,%a7@-
 	addq.l	#1,%a1@(INT_CNT)
 	moveq.l	#CVIC_SW_IRQ,%d0
 	move.l	%d0,%a2@(CVIC_SW_IRQ_CLR)
+	move.l	%a7@+,%d0
 	rte
 
 	/* Bad exception handler */
