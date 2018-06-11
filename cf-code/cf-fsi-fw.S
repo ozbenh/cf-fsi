@@ -300,7 +300,9 @@ arbitration_request:
 	/* Got it, re-load the GPIO caches */
 	move.l	%a5@(0),%DCLK
 	move.l	%a4@(0),%DDAT
-
+#ifndef DTRA_UNCACHED
+	move.l	%a5@(TRANS_GPIO_DREG-CLOCK_GPIO_VREG),%DTRA
+#endif
 	/* Reconfigure data as output just in case ... */
 	bsr	config_gpio_out
 
