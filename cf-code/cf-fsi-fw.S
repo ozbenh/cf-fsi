@@ -259,7 +259,7 @@ _start:
 	move.l	%a0,(0x46*4)
 
 	/* Mask interrupts */
-	move.w	#0x2000,%sr
+	move.w	#0x2007,%sr
 
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
@@ -271,34 +271,27 @@ _start:
 	 * Main command loop
 	 */
 main_loop:
+	/* Reset trace pointer */
+#ifdef ENABLE_TRACE
 	lea	%a1@(TRACEBUF),%a3
-
-	/* Wait arbitration request or command
-	 *
-	 * Note: This can run with interrupts enabled as a result of
-	 *       the stop op, so %d0 can be clobbered at any time.
-	 */
+#endif
+	/* Wait arbitration request or command */
 1:	move.b	%a1@(ARB_REG),%d2
 	bne	arbitration_request
 	move.l	%a1@(CMD_STAT_REG),%d2
 	tst.b	%d2
 	bne	command_request
 	stop	#0x2000
+	move.w	#0x2007,%sr
 	bra	1b
 
 arbitration_request:
-	/* Mask interrupts */
-	move.w	#0x2007,%sr
-
 	/* Ack request */
 	move.b	#ARB_ARM_ACK,%a1@(ARB_REG)
 
 	/* Wait until it's cleared by the host */
 0:	move.b	%a1@(ARB_REG),%d1
 	bne	1f
-
-	/* Mask interrupts */
-	move.w	#0x2007,%sr
 
 	/* Got it, re-load the GPIO caches */
 	move.l	%a5@(0),%DCLK
@@ -314,12 +307,10 @@ arbitration_request:
 
 	/* Wait, we'll get an interrupt when the host clears it */
 1:	stop	#0x2000
+	move.w	#0x2007,%sr
 	bra	0b
 
 command_request:
-	/* Mask interrupts */
-	move.w	#0x2007,%sr
-
 	/* Clear the command/status register */
 	moveq.l	#0,%d0
 	move.l	%d0,%a1@(CMD_STAT_REG)
