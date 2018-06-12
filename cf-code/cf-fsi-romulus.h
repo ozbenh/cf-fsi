@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 #define CLOCK_GPIO_VREG	0x1e0
 #define CLOCK_GPIO_DREG 0x0d8
 #define CLOCK_GPIO_BIT	16

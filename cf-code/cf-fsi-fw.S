@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
+
 #include "cf-fsi-fw.h"
 
 	.equ	SRAM_BASE_BE,	0x320000

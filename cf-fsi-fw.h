@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 #ifndef __CF_FSI_FW_H
 #define __CF_FSI_FW_H
 
