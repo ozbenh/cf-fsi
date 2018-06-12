@@ -25,15 +25,15 @@ M68KLDFLAGS = -Ttext 0
 
 # FW code files
 TARGET_DEFS = $(wildcard cf-code/*.h)
-TARGETS_s = $(patsubst %.h,%.s,$(TARGET_DEFS))
-TARGETS_o = $(patsubst %.h,%.o,$(TARGET_DEFS))
-TARGETS_elf = $(patsubst %.h,%.elf,$(TARGET_DEFS))
 TARGETS_bin = $(patsubst %.h,%.bin,$(TARGET_DEFS))
+
+FW_SOURCE = cf-code/cf-fsi-fw.S
+FW_DEPS = $(FW_SOURCE) cf-fsi-fw.h
 
 all: $(TARGETS_bin) cf-fsi-test
 
-cf-code/%.s : cf-code/%.h cf-code/cf-fsi-fw.S
-	$(CC) -E $(M68KCPPFLAGS) -I. -include $^ -o $@
+cf-code/%.s : cf-code/%.h $(FW_DEPS)
+	$(CC) -E $(M68KCPPFLAGS) -I. -include $< $(FW_SOURCE) -o $@
 
 cf-code/%.o : cf-code/%.s
 	$(M68KAS) $(M68KAFLAGS) -march=isac $^ -o $@
