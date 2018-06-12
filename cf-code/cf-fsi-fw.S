@@ -568,6 +568,7 @@ _int:
 	addq.l	#1,%a1@(INT_CNT)
 	moveq.l	#CVIC_SW_IRQ,%d0
 	move.l	%d0,%a2@(CVIC_SW_IRQ_CLR)
+	move.l	%a2@(CVIC_SW_IRQ_CLR),%d0
 	move.l	%a7@+,%d0
 	rte
 
