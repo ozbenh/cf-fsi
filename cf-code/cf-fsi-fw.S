@@ -198,6 +198,10 @@ _start:
 	add.l	#DATA_GPIO_VREG,%a4
 	movea.l	#CVIC_BASE,%a2
 
+	/* Store some diagnostic stuff */
+	move.l			%d0,%a1@(CF_RESET_D0)
+	move.l			%d1,%a1@(CF_RESET_D1)
+
 	/* Cache clock bit number */
 	moveq.l	#CLOCK_GPIO_BIT,%d5
 

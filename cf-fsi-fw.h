@@ -110,6 +110,10 @@
 #define  ARB_ARM_REQ		0x01
 #define  ARB_ARM_ACK		0x02
 
+/* Misc2 */
+#define CF_RESET_D0		0x50
+#define CF_RESET_D1		0x54
+
 /*
  * SRAM layout: Trace buffer (debug builds only)
  */
