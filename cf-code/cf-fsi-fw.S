@@ -175,11 +175,19 @@ _header_info:
 	.byte	API_VERSION_MAJ		/* 0x04 */
 	.byte	API_VERSION_MIN		/* 0x05 */
 	.byte	0,0			/* 0x06 pad */
+
 #ifdef ENABLE_TRACE
-	.long	FW_OPTION_TRACE_EN	/* 0x08 */
+#define _FW_OPTION_TRACE_EN	FW_OPTION_TRACE_EN
 #else
-	.long	0
+#define _FW_OPTION_TRACE_EN	0
 #endif
+
+#ifdef CONTINUOUS_CLOCKING
+#define _FW_OPTION_CONT_CLOCK	FW_OPTION_CONT_CLOCK
+#else
+#define _FW_OPTION_CONT_CLOCK	0
+#endif
+	.long	_FW_OPTION_TRACE_EN | _FW_OPTION_CONT_CLOCK	/* 0x08 */
 
 	/*
 	 * Config area
@@ -290,8 +298,12 @@ main_loop:
 	move.l	%a1@(CMD_STAT_REG),%d2
 	tst.b	%d2
 	bne	command_request
+#ifdef CONTINUOUS_CLOCKING
+	clock_toggle
+#else
 	stop	#0x2000
 	move.w	#0x2007,%sr
+#endif
 	bra	1b
 
 arbitration_request:

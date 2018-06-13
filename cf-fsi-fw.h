@@ -32,7 +32,8 @@
 #define  API_VERSION_MAJ	1	/* Current version */
 #define  API_VERSION_MIN	1
 #define HDR_FW_OPTIONS		0x08	/* 4 bytes option flags */
-#define   FW_OPTION_TRACE_EN	0x00000001	/* FW tracing enabled */
+#define  FW_OPTION_TRACE_EN	0x00000001	/* FW tracing enabled */
+#define	 FW_OPTION_CONT_CLOCK	0x00000002	/* Continuous clocking */
 
 /* Boot Config: Address of Command/Status area */
 #define HDR_CMD_STAT_AREA	0x80	/* 4 bytes CF address */
