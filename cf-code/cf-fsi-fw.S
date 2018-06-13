@@ -124,6 +124,9 @@
 	.macro clock_in_bit reg:req tmp:req tmp2:req
 	bclr.l	%d5,%DCLK	/* clock low */
 	move.l	%DCLK,%a5@(0)
+#ifdef EXTRA_DUMMY_READ
+	move.l	%a4@(0),\tmp		/* dummy read */
+#endif
 	move.l	%a4@(0),\tmp		/* dummy read */
 	move.l	%a4@(0),\tmp		/* actual read */
 	bset.l	%d5,%DCLK		/* clock high */
