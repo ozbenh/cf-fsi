@@ -27,6 +27,7 @@
 #define HDR_SYS_SIG		0x00	/* 2 bytes system signature */
 #define  SYS_SIG_ROMULUS	0x526d		/* 'Rm' */
 #define  SYS_SIG_WITHERSPOON	0x5773		/* 'Ws' */
+#define  SYS_SIG_PALMETTO	0x5061		/* 'Pa' */
 #define HDR_FW_VERS		0x02	/* 2 bytes Major.Minor */
 #define HDR_API_VERS		0x04	/* 2 bytes Major.Minor */
 #define  API_VERSION_MAJ	1	/* Current version */
