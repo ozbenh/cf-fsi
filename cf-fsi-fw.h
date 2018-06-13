@@ -103,8 +103,9 @@
 
 /* Misc */
 #define	INT_CNT			0x30 /* 32-bit interrupt count */
-#define	BAD_INT_VEC		0x34
+#define	BAD_INT_VEC		0x34 /* 32-bit bad interrupt vector # */
 #define	CF_STARTED		0x38 /* byte, set to -1 when copro started */
+#define	CLK_CNT			0x3c /* 32-bit, clock count (debug only) */
 
 /*
  *  SRAM layout: GPIO arbitration part

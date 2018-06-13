@@ -67,8 +67,13 @@
 	.macro trace op:req
 	move.b	\op,%a3@+
 	.endm
+	.macro count_clock
+	addq.l	#1,%a1@(CLK_CNT)
+	.endm
 #else
 	.macro trace op:req
+	.endm
+	.macro count_clock
 	.endm
 #endif
 
@@ -82,6 +87,7 @@
 	move.l	%DCLK,%a5@(0)
 	bset.l	%d5,%DCLK	/* clock high */
 	move.l	%DCLK,%a5@(0)
+	count_clock
 	.endm
 
 	/* clock_out_bit reg: Clock out bit 31 of reg */
@@ -131,6 +137,7 @@
 	move.l	%a4@(0),\tmp		/* actual read */
 	bset.l	%d5,%DCLK		/* clock high */
 	move.l	%DCLK,%a5@(0)
+	count_clock
 	moveq.l	#DATA_GPIO_BIT,\tmp2
 	lsr.l	\tmp2,\tmp
 	moveq.l	#1,\tmp2
