@@ -30,7 +30,7 @@ TARGETS_bin = $(patsubst %.h,%.bin,$(TARGET_DEFS))
 FW_SOURCE = cf-code/cf-fsi-fw.S
 FW_DEPS = $(FW_SOURCE) cf-fsi-fw.h
 
-all: $(TARGETS_bin) cf-fsi-test
+all: $(TARGETS_bin) cf-fsi-test-rom cf-fsi-test-palm
 
 cf-code/%.s : cf-code/%.h $(FW_DEPS)
 	$(CC) -E $(M68KCPPFLAGS) -I. -include $< $(FW_SOURCE) -o $@
@@ -44,15 +44,21 @@ cf-code/%.elf : cf-code/%.o
 cf-code/%.bin : cf-code/%.elf
 	$(M68KOC) -O binary $^ $@
 
-cf-wrapper.o : cf-wrapper.S cf-code/cf-fsi-romulus.bin
-	$(CC) $(CFLAGS) -c cf-wrapper.S -o $@
+cf-wrapper-rom.o : cf-wrapper.S cf-code/cf-fsi-romulus.bin
+	$(CC) $(CFLAGS) -DCF_FILE="cf-code/cf-fsi-romulus.bin" -c cf-wrapper.S -o $@
 
-cf-fsi-test : cf-fsi-test.o cf-wrapper.o
-	$(CC) $(CFLAGS) $^ -o $@
+cf-wrapper-palm.o : cf-wrapper.S cf-code/cf-fsi-palmetto.bin
+	$(CC) $(CFLAGS) -DCF_FILE="cf-code/cf-fsi-palmetto.bin" -c cf-wrapper.S -o $@
+
+cf-fsi-test-rom : cf-fsi-test.c cf-wrapper-rom.o
+	$(CC) $(CFLAGS) -DROMULUS $^ -o $@
+
+cf-fsi-test-palm : cf-fsi-test.c cf-wrapper-palm.o
+	$(CC) $(CFLAGS) -O0 -mcpu=arm926ej-s -DPALMETTO $^ -o $@
 
 # Keep the ELF for debugging
 .PRECIOUS : cf-code/%.elf
 
 clean:
-	rm -rf cf-fsi-test *.o
+	rm -rf cf-fsi-test-* *.o
 	rm -rf cf-code/*.elf cf-code/*.bin cf-code/*.s cf-code/*.o

@@ -20,8 +20,12 @@
 
 #include "cf-fsi-fw.h"
 
+#ifdef ROMULUS
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
 				    : : "r" (0) : "memory")
+#else
+#define dsb()
+#endif
 
 static inline uint8_t readb(void *addr)
 {
@@ -69,39 +73,55 @@ static inline void writeq(uint64_t val, void *addr)
 	dsb();
 }
 
-#define SCU_REGS		0x000e2000	/* 1e6e2000 */
-#define SCU_COPRO_CTRL	(SCU_REGS + 0x100)
-#define SCU_COPRO_RESET		0x00000002
+#define SCU_REGS			0x000e2000	/* 1e6e2000 */
+#define SCU_COPRO_CTRL			(SCU_REGS + 0x100)
+#define SCU_COPRO_RESET			0x00000002
 #define SCU_COPRO_CLK_EN		0x00000001
-#define SCU_COPRO_SEG0	(SCU_REGS + 0x104) /* 1M */
-#define SCU_COPRO_SEG1	(SCU_REGS + 0x108) /* 1M */
-#define SCU_COPRO_SEG2	(SCU_REGS + 0x10c) /* 1M */
-#define SCU_COPRO_SEG3	(SCU_REGS + 0x110) /* 1M */
-#define SCU_COPRO_SEG4	(SCU_REGS + 0x114) /* 1M */
-#define SCU_COPRO_SEG5	(SCU_REGS + 0x118) /* 1M */
-#define SCU_COPRO_SEG6	(SCU_REGS + 0x11c) /* 1M */
-#define SCU_COPRO_SEG7	(SCU_REGS + 0x120) /* 1M */
-#define SCU_COPRO_SEG8	(SCU_REGS + 0x124) /* 8M */
-#define SCU_COPRO_SEG_SWAP		0x00000001
-#define SCU_COPRO_CACHE_CTL	(SCU_REGS + 0x128)
-#define SCU_COPRO_CACHE_EN		0x00000001
-#define SCU_COPRO_SEG0_CACHE_EN	0x00000002
-#define SCU_COPRO_SEG1_CACHE_EN	0x00000004
-#define SCU_COPRO_SEG2_CACHE_EN	0x00000008
-#define SCU_COPRO_SEG3_CACHE_EN	0x00000010
-#define SCU_COPRO_SEG4_CACHE_EN	0x00000020
-#define SCU_COPRO_SEG5_CACHE_EN	0x00000040
-#define SCU_COPRO_SEG6_CACHE_EN	0x00000080
-#define SCU_COPRO_SEG7_CACHE_EN	0x00000100
-#define SCU_COPRO_SEG8_CACHE_EN	0x00000200
 
-#define COPRO_ICACHE_FLUSH_REG	0x00008000
-#define COPRO_DCACHE_FLUSH_REG	0x00008004
+#define SCU_2500_COPRO_SEG0		(SCU_REGS + 0x104) /* 1M */
+#define SCU_2500_COPRO_SEG1		(SCU_REGS + 0x108) /* 1M */
+#define SCU_2500_COPRO_SEG2		(SCU_REGS + 0x10c) /* 1M */
+#define SCU_2500_COPRO_SEG3		(SCU_REGS + 0x110) /* 1M */
+#define SCU_2500_COPRO_SEG4		(SCU_REGS + 0x114) /* 1M */
+#define SCU_2500_COPRO_SEG5		(SCU_REGS + 0x118) /* 1M */
+#define SCU_2500_COPRO_SEG6		(SCU_REGS + 0x11c) /* 1M */
+#define SCU_2500_COPRO_SEG7		(SCU_REGS + 0x120) /* 1M */
+#define SCU_2500_COPRO_SEG8		(SCU_REGS + 0x124) /* 8M */
+#define SCU_2500_COPRO_SEG_SWAP		0x00000001
+#define SCU_2500_COPRO_CACHE_CTL	(SCU_REGS + 0x128)
+#define SCU_2500_COPRO_CACHE_EN		0x00000001
+#define SCU_2500_COPRO_SEG0_CACHE_EN	0x00000002
+#define SCU_2500_COPRO_SEG1_CACHE_EN	0x00000004
+#define SCU_2500_COPRO_SEG2_CACHE_EN	0x00000008
+#define SCU_2500_COPRO_SEG3_CACHE_EN	0x00000010
+#define SCU_2500_COPRO_SEG4_CACHE_EN	0x00000020
+#define SCU_2500_COPRO_SEG5_CACHE_EN	0x00000040
+#define SCU_2500_COPRO_SEG6_CACHE_EN	0x00000080
+#define SCU_2500_COPRO_SEG7_CACHE_EN	0x00000100
+#define SCU_2500_COPRO_SEG8_CACHE_EN	0x00000200
 
-#define SRAM_BASE		0x00120000	/* 1e720000 - actually 36K */
-#define SRAM_SIZE		0x00008000
+#define SCU_2400_COPRO_SEG0		(SCU_REGS + 0x104)
+#define SCU_2400_COPRO_SEG2		(SCU_REGS + 0x108)
+#define SCU_2400_COPRO_SEG4		(SCU_REGS + 0x10c)
+#define SCU_2400_COPRO_SEG6		(SCU_REGS + 0x110)
+#define SCU_2400_COPRO_SEG8		(SCU_REGS + 0x114)
+#define SCU_2400_COPRO_SEG_SWAP		0x80000000
+#define SCU_2400_COPRO_CACHE_CTL	(SCU_REGS + 0x118)
+#define SCU_2400_COPRO_CACHE_EN		0x00000001
+#define SCU_2400_COPRO_SEG0_CACHE_EN	0x00000002
+#define SCU_2400_COPRO_SEG2_CACHE_EN	0x00000004
+#define SCU_2400_COPRO_SEG4_CACHE_EN	0x00000008
+#define SCU_2400_COPRO_SEG6_CACHE_EN	0x00000010
+#define SCU_2400_COPRO_SEG8_CACHE_EN	0x00000020
+
+#define COPRO_ICACHE_FLUSH_REG		0x00008000
+#define COPRO_DCACHE_FLUSH_REG		0x00008004
+
+#define SRAM_BASE			0x00120000	/* 1e720000 - actually 36K */
+#define SRAM_SIZE			0x00008000
 
 #define GPIO_REGS		0x00180000 /* 1e780000 */
+#ifdef ROMULUS
 #define GPIO_YZAAAB_CMDSRC0	(GPIO_REGS + 0x170)
 #define GPIO_YZAAAB_CMDSRC1	(GPIO_REGS + 0x174)
 #define GPIO_QRST_CMDSRC0	(GPIO_REGS + 0x110)
@@ -109,9 +129,18 @@ static inline void writeq(uint64_t val, void *addr)
 #define GPIO_QRST_DATA		(GPIO_REGS + 0x080)
 #define GPIO_QRST_DIR		(GPIO_REGS + 0x084)
 #define GPIO_QRST_DATARD	(GPIO_REGS + 0x0d0)
-
 #define GPIO_AA_SRC_BIT		0x00010000
 #define GPIO_R_SRC_BIT		0x00000100
+#endif
+
+#ifdef PALMETTO
+#define GPIO_ABCD_CMDSRC0	(GPIO_REGS + 0x060)
+#define GPIO_ABCD_CMDSRC1	(GPIO_REGS + 0x064)
+#define GPIO_EFGH_CMDSRC0	(GPIO_REGS + 0x068)
+#define GPIO_EFGH_CMDSRC1	(GPIO_REGS + 0x06c)
+#define GPIO_A_SRC_BIT		0x00000001
+#define GPIO_H_SRC_BIT		0x01000000
+#endif
 
 #define CVIC_BASE		0x000c2000	/* 1e6c2000 */
 #define CVIC_EN_REG		0x10
@@ -122,8 +151,14 @@ static void *sysreg;
 #define SYSREG_SIZE	0x00200000	/* 2M*/
 
 static void *cfmem;
+#ifdef ROMULUS
 #define CFMEM_BASE	0x9ef00000	/* Reserved memory */
 #define CFMEM_SIZE	0x00100000	/* 1M */
+#endif
+#ifdef PALMETTO
+#define CFMEM_BASE	0x5ee00000	/* Reserved memory */
+#define CFMEM_SIZE	0x00200000	/* 2M */
+#endif
 
 #define	FSI_GPIO_CMD_DPOLL      0x2
 #define	FSI_GPIO_CMD_EPOLL      0x3
@@ -149,6 +184,7 @@ static void *cfmem;
 
 uint32_t g_last_addr;
 bool trace_enabled;
+int slave_id;
 
 static void open_mem(void)
 {
@@ -175,6 +211,7 @@ static void open_mem(void)
 	}
 }
 
+#ifdef ROMULUS
 static void setup_cf_maps(void)
 {
 	/*
@@ -194,20 +231,55 @@ static void setup_cf_maps(void)
 	 */
 
 	/* Setup segment 0 to our memory region */
-	writel(CFMEM_BASE | SCU_COPRO_SEG_SWAP, sysreg + SCU_COPRO_SEG0);
+	writel(CFMEM_BASE | SCU_2500_COPRO_SEG_SWAP, sysreg + SCU_2500_COPRO_SEG0);
 
 	/* Segments 2 and 3 to sysregs with byteswap (SRAM) */
-	writel(SYSREG_BASE | SCU_COPRO_SEG_SWAP, sysreg + SCU_COPRO_SEG2);
-	writel(SYSREG_BASE | 0x100000 | SCU_COPRO_SEG_SWAP, sysreg + SCU_COPRO_SEG3);
+	writel(SYSREG_BASE | SCU_2500_COPRO_SEG_SWAP, sysreg + SCU_2500_COPRO_SEG2);
+	writel(SYSREG_BASE | 0x100000 | SCU_2500_COPRO_SEG_SWAP, sysreg + SCU_2500_COPRO_SEG3);
 
 	/* And segment 6 and 7 to our registers */
-	writel(SYSREG_BASE, sysreg + SCU_COPRO_SEG6);
-	writel(SYSREG_BASE | 0x100000, sysreg + SCU_COPRO_SEG7);
+	writel(SYSREG_BASE, sysreg + SCU_2500_COPRO_SEG6);
+	writel(SYSREG_BASE | 0x100000, sysreg + SCU_2500_COPRO_SEG7);
 
 	/* Memory cachable, regs and SRAM not cachable */
-	writel(SCU_COPRO_SEG0_CACHE_EN | SCU_COPRO_CACHE_EN,
-	       sysreg + SCU_COPRO_CACHE_CTL);
+	writel(SCU_2500_COPRO_SEG0_CACHE_EN | SCU_2500_COPRO_CACHE_EN,
+	       sysreg + SCU_2500_COPRO_CACHE_CTL);
 }
+#endif
+
+#ifdef PALMETTO
+static void setup_cf_maps(void)
+{
+	/*
+	 * Note about byteswap setting: the bus is wired backwards,
+	 * so setting the byteswap bit actually makes the ColdFire
+	 * work "normally" for a BE processor, ie, put the MSB in
+	 * the lowest address byte.
+	 *
+	 * We thus need to set the bit for our main memory which
+	 * contains our program code. We create two mappings for
+	 * the register, one with each setting.
+	 *
+	 * Segments 2 and 3 has a "swapped" mapping (BE)
+	 * and 6 and 7 have a non-swapped mapping (LE) which allows
+	 * us to avoid byteswapping register accesses since the
+	 * registers are all LE.
+	 */
+
+	/* Setup segment 0 to our memory region */
+	writel(CFMEM_BASE | SCU_2400_COPRO_SEG_SWAP, sysreg + SCU_2400_COPRO_SEG0);
+
+	/* Segments 2 to sysregs with byteswap (SRAM) */
+	writel(SYSREG_BASE | SCU_2400_COPRO_SEG_SWAP, sysreg + SCU_2400_COPRO_SEG2);
+
+	/* And segment 6to our registers */
+	writel(SYSREG_BASE, sysreg + SCU_2400_COPRO_SEG6);
+
+	/* Memory cachable, regs and SRAM not cachable */
+	writel(SCU_2400_COPRO_SEG0_CACHE_EN | SCU_2400_COPRO_CACHE_EN,
+	       sysreg + SCU_2400_COPRO_CACHE_CTL);
+}
+#endif
 
 static void reset_cf(void)
 {
@@ -246,6 +318,7 @@ static void load_cf_code(void)
 
 }
 
+#ifdef ROMULUS
 static void gpio_source_arm(void)
 {
 	uint32_t val;
@@ -285,8 +358,54 @@ static void gpio_source_cf(void)
 	val |= GPIO_R_SRC_BIT;
 	writel(val, sysreg + GPIO_QRST_CMDSRC1);
 }
+#endif
+
+#ifdef PALMETTO
+static void gpio_source_arm(void)
+{
+	uint32_t val;
+
+	/* ARM = 00 */
+	val = readl(sysreg + GPIO_ABCD_CMDSRC0);
+	val &= ~GPIO_A_SRC_BIT;
+	writel(val, sysreg + GPIO_ABCD_CMDSRC0);
+	val = readl(sysreg + GPIO_ABCD_CMDSRC1);
+	val &= ~GPIO_A_SRC_BIT;
+	writel(val, sysreg + GPIO_ABCD_CMDSRC1);
+
+	val = readl(sysreg + GPIO_EFGH_CMDSRC0);
+	val &= ~GPIO_H_SRC_BIT;
+	writel(val, sysreg + GPIO_EFGH_CMDSRC0);
+	val = readl(sysreg + GPIO_EFGH_CMDSRC1);
+	val &= ~GPIO_H_SRC_BIT;
+	writel(val, sysreg + GPIO_EFGH_CMDSRC1);
+}
+
+static void gpio_source_cf(void)
+{
+	uint32_t val;
+
+	/* CF = 10 */
+	val = readl(sysreg + GPIO_ABCD_CMDSRC0);
+	val &= ~GPIO_A_SRC_BIT;
+	writel(val, sysreg + GPIO_ABCD_CMDSRC0);
+	val = readl(sysreg + GPIO_ABCD_CMDSRC1);
+	val |= GPIO_A_SRC_BIT;
+	writel(val, sysreg + GPIO_ABCD_CMDSRC1);
+
+	val = readl(sysreg + GPIO_EFGH_CMDSRC0);
+	val &= ~GPIO_H_SRC_BIT;
+	writel(val, sysreg + GPIO_EFGH_CMDSRC0);
+	val = readl(sysreg + GPIO_EFGH_CMDSRC1);
+	val |= GPIO_H_SRC_BIT;
+	writel(val, sysreg + GPIO_EFGH_CMDSRC1);
+}
+#endif
 
 #ifdef TEST_GPIO
+#ifndef ROMULUS
+#error
+#endif
 
 static void copro_gpio_request(void)
 {
@@ -512,13 +631,13 @@ static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
 	/* cmd opcodes are variable length - SAME_AR is only two bits */
 	opcode_bits = 3;
 
-	if (check_same_address(id, addr)) {
+	if (0 && check_same_address(id, addr)) {
 		/* we still address the byte offset within the word */
 		addr_bits = 2;
 		opcode_bits = 2;
 		opcode = FSI_GPIO_CMD_SAME_AR;
 
-	} else if (check_relative_address(id, addr, &rel_addr)) {
+	} else if (0 && check_relative_address(id, addr, &rel_addr)) {
 		/* 8 bits plus sign */
 		addr_bits = 9;
 		addr = rel_addr;
@@ -552,6 +671,17 @@ static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
 	for (i = 0; write && i < size; i++)
 		msg_push_bits(cmd, ((uint8_t *)data)[i], 8);
 
+	msg_push_crc(cmd);
+	msg_finish_cmd(cmd);
+}
+
+static void build_dpoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
+{
+	cmd->bits = 0;
+	cmd->msg = 0;
+
+	msg_push_bits(cmd, slave_id, 2);
+	msg_push_bits(cmd, FSI_GPIO_CMD_DPOLL, 3);
 	msg_push_crc(cmd);
 	msg_finish_cmd(cmd);
 }
@@ -620,6 +750,14 @@ int test_break(void)
 	return do_command(CMD_BREAK);
 }
 
+void dummy_clocks(int count)
+{
+	while(count > 0) {
+		do_command(CMD_IDLE_CLOCKS | (100 << 8));
+		count -= 100;
+	}
+}
+
 int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 {
 	struct fsi_gpio_msg cmd;
@@ -630,10 +768,11 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 
 	if (is_write) {
 		be_data = htonl(*data);
-		build_ar_command(&cmd, 0, addr, 4, &be_data);
+		build_ar_command(&cmd, slave_id, addr, 4, &be_data);
 	} else
-		build_ar_command(&cmd, 0, addr, 4, NULL);
+		build_ar_command(&cmd, slave_id, addr, 4, NULL);
 
+ try_again:
 	/* Store message into SRAM */
 	writel(htonl(cmd.msg >> 32), sysreg + SRAM_BASE + CMD_DATA);
 	writel(htonl(cmd.msg & 0xffffffff), sysreg + SRAM_BASE + CMD_DATA + 4);
@@ -666,6 +805,13 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 		printf("BAD CRC !!!\n");
 		dump_stuff();
 		return -ETIMEDOUT;
+	}
+	if (ack == 1) {
+		printf("BUSY ... DPOLL'ing\n");
+		dump_stuff();
+		do_command(CMD_IDLE_CLOCKS | (50 << 8));
+		build_dpoll_command(&cmd, slave_id);
+		goto try_again;
 	}
 	if (ack) {
 		printf("FSI error 0x%x\n", rtag & 3);
@@ -744,15 +890,19 @@ int main(int argc, char *argv[])
 
 	setup_cf_maps();
 
+	printf("Loading CF code...\n");
 	load_cf_code();
 
+	printf("Switching GPIOs...\n");
 	gpio_source_cf();
 
 	/* Clear SRAM */
+	printf("Clearing SRAM...\n");
 	memset(sysreg + SRAM_BASE, 0x00, 0x1000);
 	dsb();
 
 	/* Start ColdFire */
+	printf("Starting CF...\n");
 	start_cf();
 
 	/* Wait for status register to say command complete */
@@ -768,7 +918,12 @@ int main(int argc, char *argv[])
 	writel(0x2, sysreg + CVIC_BASE + CVIC_EN_REG);
 
 	last_address_update(0, false, 0);
+	slave_id = 3;
 
+#ifdef PALMETTO
+	/* Let it run for a bit */
+	sleep(1);
+#endif
 	/* Send break */
 	test_break();
 
@@ -782,8 +937,7 @@ int main(int argc, char *argv[])
 	printf("old smode: %08x\n", val);
 
 	/* 6 seems to be the "sweet spot" for performance */
-#define ECHO_SEND_DELAY		6
-
+#define ECHO_SEND_DELAY		16
 	/* Change it to 2,2 */
 	val = FSI_SMODE_WSC | FSI_SMODE_ECRC
 		| fsi_smode_echodly(ECHO_SEND_DELAY - 1)
@@ -794,15 +948,36 @@ int main(int argc, char *argv[])
 	do_command(CMD_IDLE_CLOCKS | (16 << CMD_REG_CLEN_SHIFT));
 	writeb(ECHO_SEND_DELAY, sysreg + SRAM_BASE + ECHO_DLY_REG);
 	writeb(ECHO_SEND_DELAY, sysreg + SRAM_BASE + SEND_DLY_REG);
+	slave_id = 0;
 
 	test_rw(FSI_SLAVE_BASE + FSI_SMODE, false, &val);
 	printf("new smode: %08x\n", val);
 
+#ifdef PALMETTO
+	/* Boot the host */
+	printf("ATTNA...\n");
+	val = 0x20000000;
+	test_rw(0x870, true, &val);
+	printf("ATTNB...\n");
+	val = 0x40000000;
+	test_rw(0x1034, true, &val);
+	printf("ATTNC...\n");
+	val = 0xffffffff;
+	test_rw(0x102c, true, &val);
+	printf("Primary select...\n");
+	val = 0x30000000;
+	test_rw(0x2870, true, &val);
+	printf("Go select...\n");
+	val = 0xB0000000;
+	test_rw(0x2870, true, &val);
+#endif
 #ifdef TEST_GPIO
 	test_gpio_stuff();
 #else
 	bench();
 #endif
+	printf("Press return...\n");
+	getchar();
 	gpio_source_arm();
 
 	return 0;
