@@ -11,5 +11,6 @@
 
 #define SYS_SIG		SYS_SIG_PALMETTO
 
+#define NO_SW_IRQ
 #define CONTINUOUS_CLOCKING
 #define EXTRA_DUMMY_READ

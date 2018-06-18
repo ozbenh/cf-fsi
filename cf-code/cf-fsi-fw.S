@@ -308,8 +308,10 @@ main_loop:
 #ifdef CONTINUOUS_CLOCKING
 	clock_toggle
 #else
+#ifndef NO_SW_IRQ
 	stop	#0x2000
 	move.w	#0x2007,%sr
+#endif
 #endif
 	bra	1b
 
@@ -318,9 +320,27 @@ arbitration_request:
 	move.b	#ARB_ARM_ACK,%a1@(ARB_REG)
 
 	/* Wait until it's cleared by the host */
-0:	move.b	%a1@(ARB_REG),%d1
-	bne	1f
+arb_wait:
+	move.b	%a1@(ARB_REG),%d1
+	beq	arb_done
 
+#ifdef NO_SW_IRQ
+	/* In absence of SW irq, just loop with some NOPs to avoid
+	 * hammering the bus too hard
+	 */
+	moveq.l	#32,%d0
+0:	nop
+	subq.l	#1,%d0
+	bne	0b
+	bra	arb_wait
+#else
+	/* Wait, we'll get an interrupt when the host clears it */
+	stop	#0x2000
+	move.w	#0x2007,%sr
+	bra	arb_wait
+#endif
+
+arb_done:
 	/* Got it, re-load the GPIO caches */
 	move.l	%a5@(0),%DCLK
 	move.l	%a4@(0),%DDAT
@@ -332,11 +352,6 @@ arbitration_request:
 
 	/* Back to main loop */
 	bra	main_loop
-
-	/* Wait, we'll get an interrupt when the host clears it */
-1:	stop	#0x2000
-	move.w	#0x2007,%sr
-	bra	0b
 
 command_request:
 	/* Clear the command/status register */
