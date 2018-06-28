@@ -1,0 +1,1 @@
+#define SYS_SIG SYS_SIG_SPLIT

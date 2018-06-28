@@ -293,16 +293,79 @@ static void start_cf(void)
 	writel(SCU_COPRO_CLK_EN, sysreg + SCU_COPRO_CTRL);
 }
 
-static void load_cf_code(void)
+#ifdef ROMULUS
+#define WANTED_SIG SYS_SIG_SHARED
+static void setup_cf_config(void)
+{
+	void *base = cfmem + HDR_OFFSET;
+
+	writew(htons(0x01e0), base + HDR_CLOCK_GPIO_VADDR);
+	writew(htons(0x00d8), base + HDR_CLOCK_GPIO_DADDR);
+	writew(htons(0x01e0), base + HDR_DATA_GPIO_VADDR);
+	writew(htons(0x00d8), base + HDR_DATA_GPIO_DADDR);
+	writew(htons(0x0080), base + HDR_TRANS_GPIO_VADDR);
+	writew(htons(0x00d0), base + HDR_TRANS_GPIO_DADDR);
+	writeb(16, base + HDR_CLOCK_GPIO_BIT);
+	writeb(18, base + HDR_DATA_GPIO_BIT);
+	writeb(10, base + HDR_TRANS_GPIO_BIT);
+	writel(htonl(FW_CONTROL_USE_STOP), base + HDR_FW_CONTROL);
+}
+#endif
+
+#ifdef PALMETTO
+#define WANTED_SIG SYS_SIG_SHARED
+static void setup_cf_config(void)
+{
+	void *base = cfmem + HDR_OFFSET;
+
+	writew(htons(0x0000), base + HDR_CLOCK_GPIO_VADDR);
+	writew(htons(0x00c0), base + HDR_CLOCK_GPIO_DADDR);
+	writew(htons(0x0000), base + HDR_DATA_GPIO_VADDR);
+	writew(htons(0x00c0), base + HDR_DATA_GPIO_DADDR);
+	writew(htons(0x0020), base + HDR_TRANS_GPIO_VADDR);
+	writew(htons(0x00c4), base + HDR_TRANS_GPIO_DADDR);
+	writeb(4, base + HDR_CLOCK_GPIO_BIT);
+	writeb(5, base + HDR_DATA_GPIO_BIT);
+	writeb(30, base + HDR_TRANS_GPIO_BIT);
+	writel(htonl(FW_CONTROL_CONT_CLOCK|FW_CONTROL_DUMMY_RD), base + HDR_FW_CONTROL);
+}
+#endif
+
+static uint8_t *find_cf_code(uint16_t want_sig, size_t *out_size)
 {
 	extern uint8_t cf_code_start, cf_code_end;
+	uint8_t *start = &cf_code_start;
+	uint8_t *end = &cf_code_end;
+	size_t size;
+	uint16_t sig;
+
+	while(start < end) {
+		sig = ntohs(*(uint16_t *)(start + HDR_OFFSET + HDR_SYS_SIG));
+		size = ntohl(*(uint32_t *)(start + HDR_OFFSET + HDR_FW_SIZE));
+		if (sig == want_sig) {
+			*out_size = size;
+			return start;
+		}
+		start += size;
+	}
+	return NULL;
+}
+
+static void load_cf_code(void)
+{
 	uint16_t sig, fw_vers, api_vers;
 	uint32_t fw_options;
-
-	uint8_t *code = &cf_code_start;
+	uint8_t *code, *end;
+	size_t size;
 	uint8_t *mem = cfmem;
 
-	while(code < &cf_code_end)
+	code = find_cf_code(WANTED_SIG, &size);
+	if (!code) {
+		printf("Can't find code signature %04x\n", WANTED_SIG);
+		exit(1);
+	}
+	end = code + size;
+	while(code < end)
 		writeb(*(code++), mem++);
 
 	sig = ntohs(readw(cfmem + HDR_OFFSET + HDR_SYS_SIG));
@@ -316,6 +379,7 @@ static void load_cf_code(void)
 	       sig, fw_vers, api_vers >> 8, api_vers & 0xff,
 	       trace_enabled ? "enabled" : "disabled");
 
+	setup_cf_config();
 }
 
 #ifdef ROMULUS
@@ -690,12 +754,20 @@ static void dump_stuff(void)
 {
 	int i;
 
-	printf("CMD:%08x RTAG=%02x RCRC=%02x RDATA=%02x #INT=%08x\n",
+	printf("CMD:%08x RTAG=%02x RCRC=%02x RDATA=%02x BAD_INT=%08x (%08x %08x)\n",
 	       ntohl(readl(sysreg + SRAM_BASE + CMD_STAT_REG)),
 	       readb(sysreg + SRAM_BASE + STAT_RTAG),
 	       readb(sysreg + SRAM_BASE + STAT_RCRC),
 	       ntohl(readl(sysreg + SRAM_BASE + RSP_DATA)),
-	       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)));
+	       ntohl(readl(sysreg + SRAM_BASE + BAD_INT_VEC)),
+	       ntohl(readl(sysreg + SRAM_BASE + BAD_INT_S0)),
+	       ntohl(readl(sysreg + SRAM_BASE + BAD_INT_S1)));
+	if (trace_enabled) {
+		printf("#INT=%08x #CLK=%08x #STOP=%08x\n",
+		       ntohl(readl(sysreg + SRAM_BASE + INT_CNT)),
+		       ntohl(readl(sysreg + SRAM_BASE + CLK_CNT)),
+		       ntohl(readl(sysreg + SRAM_BASE + STOP_CNT)));
+	}
 
 	for (i = 0; trace_enabled && i < 128; i++) {
 		uint8_t v = readb(sysreg + SRAM_BASE + TRACEBUF + i);
@@ -711,11 +783,20 @@ static void dump_stuff(void)
 
 static int do_command(uint32_t op)
 {
-	uint32_t timeout = 100000;
+	uint32_t timeout = 1000000;
 	uint8_t stat;
+
+	/* Clear trace */
+	if (trace_enabled) {
+		memset(sysreg + SRAM_BASE + TRACEBUF, 0x00, 128);
+		(void)readl(sysreg + SRAM_BASE + CMD_STAT_REG);
+	}
 
 	/* Send command */
 	writel(htonl(op), sysreg + SRAM_BASE + CMD_STAT_REG);
+
+	/* Read back to avoid ordering issue */
+	(void)readl(sysreg + SRAM_BASE + CMD_STAT_REG);
 
 	/* Ring doorbell */
 	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
@@ -733,6 +814,7 @@ static int do_command(uint32_t op)
 
 	if (stat == STAT_COMPLETE)
 		return 0;
+	dump_stuff();
 	switch(stat) {
 	case STAT_ERR_INVAL_CMD:
 		return -EINVAL;
@@ -879,7 +961,7 @@ void bench(void)
 
 int main(int argc, char *argv[])
 {
-	uint32_t val;
+	uint32_t val, timeout;
 
 	open_mem();
 
@@ -906,8 +988,14 @@ int main(int argc, char *argv[])
 	start_cf();
 
 	/* Wait for status register to say command complete */
+	timeout = 10000;
 	do {
+		if (!--timeout) {
+			printf("Startup failed !\n");
+			dump_stuff();
+		}
 		val = readl(sysreg + SRAM_BASE + CF_STARTED);
+		usleep(10);
 	} while (val == 0x00);
 
 	/* Configure echo & send delay */
@@ -924,6 +1012,8 @@ int main(int argc, char *argv[])
 	/* Let it run for a bit */
 	sleep(1);
 #endif
+	dump_stuff();
+
 	/* Send break */
 	test_break();
 

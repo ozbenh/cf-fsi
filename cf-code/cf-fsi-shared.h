@@ -1,0 +1,3 @@
+#define SYS_SIG SYS_SIG_SHARED
+
+#define DCLK_DDAT_SHARED

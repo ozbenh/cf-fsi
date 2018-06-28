@@ -25,19 +25,32 @@
 
 /* Info: Signature & version */
 #define HDR_SYS_SIG		0x00	/* 2 bytes system signature */
-#define  SYS_SIG_ROMULUS	0x526d		/* 'Rm' */
-#define  SYS_SIG_WITHERSPOON	0x5773		/* 'Ws' */
-#define  SYS_SIG_PALMETTO	0x5061		/* 'Pa' */
+#define  SYS_SIG_SHARED		0x5348
+#define  SYS_SIG_SPLIT		0x5350
 #define HDR_FW_VERS		0x02	/* 2 bytes Major.Minor */
 #define HDR_API_VERS		0x04	/* 2 bytes Major.Minor */
-#define  API_VERSION_MAJ	1	/* Current version */
+#define  API_VERSION_MAJ	2	/* Current version */
 #define  API_VERSION_MIN	1
 #define HDR_FW_OPTIONS		0x08	/* 4 bytes option flags */
 #define  FW_OPTION_TRACE_EN	0x00000001	/* FW tracing enabled */
-#define	 FW_OPTION_CONT_CLOCK	0x00000002	/* Continuous clocking */
+#define	 FW_OPTION_CONT_CLOCK	0x00000002	/* Continuous clocking supported */
+#define HDR_FW_SIZE		0x10	/* 4 bytes size for combo image */
 
 /* Boot Config: Address of Command/Status area */
 #define HDR_CMD_STAT_AREA	0x80	/* 4 bytes CF address */
+#define HDR_FW_CONTROL		0x84	/* 4 bytes control flags */
+#define	 FW_CONTROL_CONT_CLOCK	0x00000002	/* Continuous clocking enabled */
+#define	 FW_CONTROL_DUMMY_RD	0x00000004	/* Extra dummy read (AST2400) */
+#define	 FW_CONTROL_USE_STOP	0x00000008	/* Use STOP instructions */
+#define HDR_CLOCK_GPIO_VADDR	0x90	/* 2 bytes offset from GPIO base */
+#define HDR_CLOCK_GPIO_DADDR	0x92	/* 2 bytes offset from GPIO base */
+#define HDR_DATA_GPIO_VADDR	0x94	/* 2 bytes offset from GPIO base */
+#define HDR_DATA_GPIO_DADDR	0x96	/* 2 bytes offset from GPIO base */
+#define HDR_TRANS_GPIO_VADDR	0x98	/* 2 bytes offset from GPIO base */
+#define HDR_TRANS_GPIO_DADDR	0x9a	/* 2 bytes offset from GPIO base */
+#define HDR_CLOCK_GPIO_BIT	0x9c	/* 1 byte bit number */
+#define HDR_DATA_GPIO_BIT	0x9d	/* 1 byte bit number */
+#define HDR_TRANS_GPIO_BIT	0x9e	/* 1 byte bit number */
 
 /*
  *  Command/Status area layout: Main part
@@ -117,6 +130,11 @@
 /* Misc2 */
 #define CF_RESET_D0		0x50
 #define CF_RESET_D1		0x54
+#define BAD_INT_S0		0x58
+#define BAD_INT_S1		0x5c
+#define STOP_CNT		0x60
+
+/* Internal */
 
 /*
  * SRAM layout: Trace buffer (debug builds only)
