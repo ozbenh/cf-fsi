@@ -60,5 +60,5 @@ cf-fsi-test-palm : cf-fsi-test.c cf-wrapper-palm.o
 .PRECIOUS : cf-code/%.elf
 
 clean:
-	rm -rf cf-fsi-test-* *.o
+	rm -rf cf-fsi-test-* *.o *.s
 	rm -rf cf-code/*.elf cf-code/*.bin cf-code/*.s cf-code/*.o
