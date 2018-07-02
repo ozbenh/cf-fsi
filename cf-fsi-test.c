@@ -695,13 +695,13 @@ static void build_ar_command(struct fsi_gpio_msg *cmd, uint8_t id,
 	/* cmd opcodes are variable length - SAME_AR is only two bits */
 	opcode_bits = 3;
 
-	if (0 && check_same_address(id, addr)) {
+	if (check_same_address(id, addr)) {
 		/* we still address the byte offset within the word */
 		addr_bits = 2;
 		opcode_bits = 2;
 		opcode = FSI_GPIO_CMD_SAME_AR;
 
-	} else if (0 && check_relative_address(id, addr, &rel_addr)) {
+	} else if (check_relative_address(id, addr, &rel_addr)) {
 		/* 8 bits plus sign */
 		addr_bits = 9;
 		addr = rel_addr;
