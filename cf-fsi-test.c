@@ -20,6 +20,8 @@
 
 #include "cf-fsi-fw.h"
 
+#undef FORCE_SYNC
+
 #ifdef ROMULUS
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
 				    : : "r" (0) : "memory")
@@ -167,7 +169,7 @@ static void *cfmem;
 #define FSI_GPIO_CMD_REL_AR	0x5
 #define FSI_GPIO_CMD_SAME_AR	0x3	/* but only a 2-bit opcode... */
 
-#define FSI_SLAVE_BASE			0x800
+#define FSI_SLAVE_BASE		0x800
 #define FSI_SMODE		0x0	/* R/W: Mode register */
 #define FSI_SMODE_WSC		0x80000000	/* Warm start done */
 #define FSI_SMODE_ECRC		0x20000000	/* Hw CRC check */
@@ -180,11 +182,16 @@ static void *cfmem;
 #define FSI_SMODE_LBCRR_SHIFT	8		/* Clk ratio shift */
 #define FSI_SMODE_LBCRR_MASK	0xf		/* Clk ratio mask */
 
+#define FSI_LLMODE		0x100	/* R/W: Link layer mode register */
+#define FSI_LLMODE_ASYNC	0x1
+
+
 #define LAST_ADDR_INVALID		0x1
 
 uint32_t g_last_addr;
 bool trace_enabled;
 int slave_id;
+int busy_count;
 
 static void open_mem(void)
 {
@@ -308,7 +315,11 @@ static void setup_cf_config(void)
 	writeb(16, base + HDR_CLOCK_GPIO_BIT);
 	writeb(18, base + HDR_DATA_GPIO_BIT);
 	writeb(10, base + HDR_TRANS_GPIO_BIT);
+#ifdef FORCE_SYNC
+	writel(htonl(FW_CONTROL_CONT_CLOCK), base + HDR_FW_CONTROL);
+#else
 	writel(htonl(FW_CONTROL_USE_STOP), base + HDR_FW_CONTROL);
+#endif
 }
 #endif
 
@@ -789,14 +800,10 @@ static int do_command(uint32_t op)
 	/* Clear trace */
 	if (trace_enabled) {
 		memset(sysreg + SRAM_BASE + TRACEBUF, 0x00, 128);
-		(void)readl(sysreg + SRAM_BASE + CMD_STAT_REG);
 	}
 
 	/* Send command */
 	writel(htonl(op), sysreg + SRAM_BASE + CMD_STAT_REG);
-
-	/* Read back to avoid ordering issue */
-	(void)readl(sysreg + SRAM_BASE + CMD_STAT_REG);
 
 	/* Ring doorbell */
 	writel(0x2, sysreg + CVIC_BASE + CVIC_TRIG_REG);
@@ -894,8 +901,9 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 		return -ETIMEDOUT;
 	}
 	if (ack == 1) {
-		printf("BUSY ... DPOLL'ing\n");
-		dump_stuff();
+		//printf("BUSY ... DPOLL'ing\n");
+		busy_count++;
+		//dump_stuff();
 		do_command(CMD_IDLE_CLOCKS | (50 << 8));
 		build_dpoll_command(&cmd, slave_id);
 		goto try_again;
@@ -1048,6 +1056,16 @@ int main(int argc, char *argv[])
 	test_rw(FSI_SLAVE_BASE + FSI_SMODE, false, &val);
 	printf("new smode: %08x\n", val);
 
+#ifdef ROMULUS
+	test_rw(FSI_SLAVE_BASE + FSI_LLMODE, false, &val);
+	printf("llmode: %08x\n", val);
+#ifdef FORCE_SYNC
+	val = 0;
+	test_rw(FSI_SLAVE_BASE + FSI_LLMODE, true, &val);
+	printf("new llmode: %08x\n", val);
+#endif
+#endif
+
 #ifdef PALMETTO
 	/* Boot the host */
 	printf("ATTNA...\n");
@@ -1070,6 +1088,7 @@ int main(int argc, char *argv[])
 	test_gpio_stuff();
 #else
 	bench();
+	printf("Busy count: %d\n", busy_count);
 #endif
 	printf("Press return...\n");
 	getchar();
