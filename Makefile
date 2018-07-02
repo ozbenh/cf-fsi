@@ -2,7 +2,7 @@
 DEBUG ?= 0
 
 # FW version
-FW_VERSION = 2
+FW_VERSION = 3
 
 # ARM compiler for userspace test code
 CROSS_COMPILE ?= arm-linux-
