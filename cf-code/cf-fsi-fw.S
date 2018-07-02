@@ -365,7 +365,7 @@ _start:
 	move.l	%a0,(0x46*4)
 
 	/* Mask interrupts */
-	move.w	#0x2007,%sr
+	move.w	#0x2700,%sr
 
 	/* Configure GPIOs to output */
 	bsr	config_gpio_out
@@ -406,7 +406,7 @@ wait_cmd:
 	beq	1f
 	count_stop
 	stop	#0x2000
-	move.w	#0x2007,%sr
+	move.w	#0x2700,%sr
 	bra	wait_cmd
 
 	/* Neither continuous clocks nor STOP, use some nops
