@@ -832,12 +832,17 @@ int test_break(void)
 	return do_command(CMD_BREAK);
 }
 
-void dummy_clocks(int count)
+int dummy_clocks(int count)
 {
+	int rc;
+
 	while(count > 0) {
-		do_command(CMD_IDLE_CLOCKS | (100 << 8));
+		rc = do_command(CMD_IDLE_CLOCKS | (100 << 8));
+		if (rc)
+			return rc;
 		count -= 100;
 	}
+	return 0;
 }
 
 int test_rw(uint32_t addr, bool is_write, uint32_t *data)
