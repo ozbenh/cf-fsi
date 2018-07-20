@@ -397,7 +397,6 @@ wait_cmd:
 	and.l	%d0,%d1
 	beq	1f
 	clock_toggle
-	pause_nops %d1
 	bra	wait_cmd
 
 	/* Can we use STOP instructions ? */
