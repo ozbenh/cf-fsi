@@ -436,6 +436,7 @@ static void gpio_source_cf(void)
 #endif
 
 #ifdef PALMETTO
+#if 0
 static void gpio_source_arm(void)
 {
 	uint32_t val;
@@ -455,7 +456,7 @@ static void gpio_source_arm(void)
 	val &= ~GPIO_H_SRC_BIT;
 	writel(val, sysreg + GPIO_EFGH_CMDSRC1);
 }
-
+#endif
 static void gpio_source_cf(void)
 {
 	uint32_t val;
@@ -884,8 +885,8 @@ int test_rw(uint32_t addr, bool is_write, uint32_t *data)
 
 	if (!is_write)
 		resp = ntohl(readl(sysreg + SRAM_BASE + RSP_DATA));
-	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG);
-	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC);
+	rtag = readb(sysreg + SRAM_BASE + STAT_RTAG) & 0xf;
+	rcrc = readb(sysreg + SRAM_BASE + STAT_RCRC) & 0xf;
 	ack = rtag & 3;
 
 	/* we have a whole message now; check CRC */
@@ -1087,13 +1088,14 @@ int main(int argc, char *argv[])
 #ifdef TEST_GPIO
 	test_gpio_stuff();
 #else
-	bench();
+	//bench();
 	printf("Busy count: %d\n", busy_count);
 #endif
 	printf("Press return...\n");
 	getchar();
+#ifndef PALMETTO
 	gpio_source_arm();
-
+#endif
 	return 0;
 }
 

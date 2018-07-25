@@ -27,7 +27,7 @@
 	 * A3:  TRACEBUF
 	 * A4 : Data GPIO address
 	 * A5 : Clock GPIO address
-	 * A6 : CMD pointer
+	 * A6 : CMD pointer XXX could free this
 	 * A7 : Stack pointer
 	 * D7 : clock/data/trans GPIO cache
 	 * D6 : data/trans GPIO cache
@@ -238,8 +238,16 @@ _clk_in_patch\idx:
 	.org	0x500
 	.global	_start
 _start:
-	/* Get base addresses */
+	/* Get SRAM base addresses */
 	lea	%pc@(_cmd_stat_base),%a0
+
+	/* Coldfire sets D0 and D1 to special configuration values at reset,
+	 * we capture them here for diagnostics purposes
+	 */
+	move.l	%d0,%a1@(CF_RESET_D0)
+	move.l	%d1,%a1@(CF_RESET_D1)
+
+	/* Get GPIO base addresses */
 	movea.l	%a0@(0),%a1
 	movea.l	#GPIO_BASE,%a2
 	movea.l	%a2,%a5
@@ -251,12 +259,6 @@ _start:
 
 	/* Cache clock bit number */
 	mvz.b	%pc@(_clk_gpio_bit),%d5
-
-	/* Coldfire sets D0 and D1 to special configuration values at reset,
-	 * we capture them here for diagnostics purposes
-	 */
-	move.l	%d0,%a1@(CF_RESET_D0)
-	move.l	%d1,%a1@(CF_RESET_D1)
 
 	/*
 	 * Check arbitration register early. There's a case where an arbitration request
@@ -436,7 +438,7 @@ arb_wait:
 
 1:	/* In absence of SW irq, just loop with some NOPs to avoid
 	 * hammering the bus too hard
-	*/
+	 */
 	pause_nops %d1
 	bra	arb_wait
 
@@ -552,7 +554,6 @@ start_command:
 1:	/* Got start bit, clock in slave ID and response tag */
 	trace	#TR_CLKTAG
 	moveq	#4,%d3
-	moveq	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1,1
 	subq.l	#1,%d3
@@ -562,11 +563,7 @@ start_command:
 	not.l	%d4
 	trace	%d4
 
-	/* (not strictly needed: clean up top bits) */
-	moveq	#0xf,%d0
-	and.l	%d0,%d4
-
-	/* Store into STAT_RTAG for host */
+	/* Store into STAT_RTAG for host  */
 	move.b	%d4,%a1@(STAT_RTAG)
 
 	/* Extract tag part */
@@ -583,11 +580,10 @@ start_command:
 	/* Let's get data. Assume no more than 32-bits */
 	trace	#TR_CLKDATA
 	trace	%d2
-	move.l	%d2,%d3
 	moveq.l	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1,2
-	subq.l	#1,%d3
+	subq.l	#1,%d2
 	bne	0b
 
 	/* Invert data and store it */
@@ -597,7 +593,6 @@ start_command:
 1:	/* Grab CRC */
 	trace	#TR_CLKCRC
 	moveq.l	#4,%d3
-	moveq.l	#0,%d4
 0:	lsl.l	#1,%d4
 	clock_in_bit %d4,%d0,%d1,3
 	subq.l	#1,%d3
@@ -606,8 +601,6 @@ start_command:
 	/* Invert it, extract 4 bits, and store it */
 	not.l	%d4
 	trace	%d4
-	moveq.l	#0xf,%d0
-	and.l	%d0,%d4
 	move.b	%d4,%a1@(STAT_RCRC)
 
 	/* End trace */
@@ -689,6 +682,11 @@ config_gpio_out:
 	/* Set transceivers to output */
 	mvs.b	%pc@(_tra_gpio_bit),%d1
 #ifndef DCLK_DDAT_SHARED
+	/*
+	 * If DCLK and DDAT are not shared, then DTRA is a temp
+	 * register and not a permanent cache, and thus needs to
+	 * be loaded here.
+	 */
 	mvs.w	%pc@(_tra_gpio_dreg),%d3
 	move.l	%a2@(%d3),%DTRA
 #endif
@@ -696,9 +694,11 @@ config_gpio_out:
 	bset.l	%d1,%DTRA
 	move.l	%DTRA,%a2@(%d3)
 
-	/* Reload caches in case of collision & return
-	 *
-	 * This can be patched out if unnecessary
+	/*
+	 * The trans GPIO could be sharing a bank with DDAT or DCLK, so
+	 * we need to reload those caches. This gets patched out at init
+	 * time and replaced with a "rts" if we detect that trans is on
+	 * a separate address.
 	 */
 _config_out_load_ret:
 	bra	load_gpio_caches
@@ -713,6 +713,11 @@ config_gpio_in:
 	/* Set transceiver to input */
 	mvs.b	%pc@(_tra_gpio_bit),%d1
 #ifndef DCLK_DDAT_SHARED
+	/*
+	 * If DCLK and DDAT are not shared, then DTRA is a temp
+	 * register and not a permanent cache, and thus needs to
+	 * be loaded here.
+	 */
 	mvs.w	%pc@(_tra_gpio_dreg),%d3
 	move.l	%a2@(%d3),%DTRA
 #endif
@@ -720,7 +725,9 @@ config_gpio_in:
 	bclr.l	%d1,%DTRA
 	move.l	%DTRA,%a2@(%d3)
 
-	/* Reload caches in case of collision & return */
+	/* Reload caches in case of collision & return (see comment
+	 * in config_gpio_out)
+	 */
 _config_in_load_ret:
 	bra	load_gpio_caches
 
